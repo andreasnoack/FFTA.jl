@@ -27,13 +27,13 @@ Base.complex(p::FFTAPlan_re{T,N}) where {T,N} = FFTAPlan_cx{T,N}(p.callgraph, p.
 function AbstractFFTs.plan_fft(x::AbstractArray{T,N}, region; kwargs...)::FFTAPlan_cx{T} where {T <: Complex, N}
     FFTN = length(region)
     if FFTN == 1
-        g = CallGraph{T}(size(x,region[]))
+        g = CallGraph{T}(size(x,region[]), FFT_FORWARD)
         pinv = FFTAInvPlan{T,FFTN}()
         return FFTAPlan_cx{T,FFTN}((g,), region, FFT_FORWARD, pinv)
     elseif FFTN == 2
         sort!(region)
-        g1 = CallGraph{T}(size(x,region[1]))
-        g2 = CallGraph{T}(size(x,region[2]))
+        g1 = CallGraph{T}(size(x,region[1]), FFT_FORWARD)
+        g2 = CallGraph{T}(size(x,region[2]), FFT_FORWARD)
         pinv = FFTAInvPlan{T,FFTN}()
         return FFTAPlan_cx{T,FFTN}((g1,g2), region, FFT_FORWARD, pinv)
     else
@@ -44,13 +44,13 @@ end
 function AbstractFFTs.plan_bfft(x::AbstractArray{T,N}, region; kwargs...)::FFTAPlan_cx{T} where {T <: Complex,N}
     FFTN = length(region)
     if FFTN == 1
-        g = CallGraph{T}(size(x,region[]))
+        g = CallGraph{T}(size(x,region[]), FFT_BACKWARD)
         pinv = FFTAInvPlan{T,FFTN}()
         return FFTAPlan_cx{T,FFTN}((g,), region, FFT_BACKWARD, pinv)
     elseif FFTN == 2
         sort!(region)
-        g1 = CallGraph{T}(size(x,region[1]))
-        g2 = CallGraph{T}(size(x,region[2]))
+        g1 = CallGraph{T}(size(x,region[1]), FFT_BACKWARD)
+        g2 = CallGraph{T}(size(x,region[2]), FFT_BACKWARD)
         pinv = FFTAInvPlan{T,FFTN}()
         return FFTAPlan_cx{T,FFTN}((g1,g2), region, FFT_BACKWARD, pinv)
     else
@@ -61,13 +61,13 @@ end
 function AbstractFFTs.plan_rfft(x::AbstractArray{T,N}, region; kwargs...)::FFTAPlan_re{Complex{T}} where {T <: Real,N}
     FFTN = length(region)
     if FFTN == 1
-        g = CallGraph{Complex{T}}(size(x,region[]))
+        g = CallGraph{Complex{T}}(size(x,region[]), FFT_FORWARD)
         pinv = FFTAInvPlan{Complex{T},FFTN}()
         return FFTAPlan_re{Complex{T},FFTN}(tuple(g), region, FFT_FORWARD, pinv, size(x,region[]))
     elseif FFTN == 2
         sort!(region)
-        g1 = CallGraph{Complex{T}}(size(x,region[1]))
-        g2 = CallGraph{Complex{T}}(size(x,region[2]))
+        g1 = CallGraph{Complex{T}}(size(x,region[1]), FFT_FORWARD)
+        g2 = CallGraph{Complex{T}}(size(x,region[2]), FFT_FORWARD)
         pinv = FFTAInvPlan{Complex{T},FFTN}()
         return FFTAPlan_re{Complex{T},FFTN}(tuple(g1,g2), region, FFT_FORWARD, pinv, size(x,region[1]))
     else
@@ -78,13 +78,13 @@ end
 function AbstractFFTs.plan_brfft(x::AbstractArray{T,N}, len, region; kwargs...)::FFTAPlan_re{T} where {T,N}
     FFTN = length(region)
     if FFTN == 1
-        g = CallGraph{T}(len)
+        g = CallGraph{T}(len, FFT_BACKWARD)
         pinv = FFTAInvPlan{T,FFTN}()
         return FFTAPlan_re{T,FFTN}((g,), region, FFT_BACKWARD, pinv, len)
     elseif FFTN == 2
         sort!(region)
-        g1 = CallGraph{T}(len)
-        g2 = CallGraph{T}(size(x,region[2]))
+        g1 = CallGraph{T}(len, FFT_BACKWARD)
+        g2 = CallGraph{T}(size(x,region[2]), FFT_BACKWARD)
         pinv = FFTAInvPlan{T,FFTN}()
         return FFTAPlan_re{T,FFTN}((g1,g2), region, FFT_BACKWARD, pinv, len)
     else

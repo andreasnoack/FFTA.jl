@@ -321,27 +321,29 @@ function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, s
     tmp = g.workspace[idx]
 
     # Extract views from workspace
-    # workspace layout: [chirp(N), a(M), a_fft(M), b(M)]
+    # workspace layout: [chirp(N), b_fft(M), a(M), a_fft(M)]
+    # chirp is precomputed, b_fft starts as b and is FFT'd on first use
     chirp = view(tmp, 1:N)
-    a = view(tmp, N+1:N+M)
-    a_fft = view(tmp, N+M+1:N+2M)
-    b = view(tmp, N+2M+1:N+3M)
+    b_fft = view(tmp, N+1:N+M)
+    a = view(tmp, N+M+1:N+2M)
+    a_fft = view(tmp, N+2M+1:2*N+2M)
 
-    # Compute chirp sequence for n = 0..N-1
-    # For forward FFT: w = exp(-2πi/N), chirp[n] = w^(n²/2) = exp(-πi*n²/N)
-    # For backward FFT: w = exp(+2πi/N), chirp[n] = w^(n²/2) = exp(+πi*n²/N)
-    # Use recurrence: w^(n²/2) = w^((n-1)²/2) * w^((2n-1)/2) * w^(-1/2)
-    #               = w^((n-1)²/2) * w^(n-1) * w^(1/2)
-    w_half = sqrt(w)
-    chirp_power = one(T)
-    chirp_mult = w_half
-    @inbounds for n in 0:N-1
-        chirp[n+1] = chirp_power
-        chirp_power *= chirp_mult
-        chirp_mult *= w
+    # Twiddle factor for size M FFT (M is always a power of 2)
+    w_M = cispi(T(2)/M)
+
+    # Lazy initialization: check if b_fft needs to be computed
+    # The b vector has zeros from N+1 to M-N, so if any of those are non-zero,
+    # it means b_fft has already been computed
+    if iszero(b_fft[N+1])
+        # Compute FFT(b) using a as temporary space
+        # Copy b to a first, then FFT a -> b_fft
+        @inbounds for i in 1:M
+            a[i] = b_fft[i]
+        end
+        fft_pow2!(b_fft, a, M, 1, 1, 1, 1, _conj(w_M, FFT_FORWARD))
     end
 
-    # Create input sequence a_n = x_n * chirp_n
+    # Create input sequence a_n = x_n * chirp_n (chirp is precomputed)
     @inbounds for n in 0:N-1
         a[n+1] = in[start_in + n*stride_in] * chirp[n+1]
     end
@@ -349,37 +351,20 @@ function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, s
         a[n+1] = zero(T)
     end
 
-    # Create convolution kernel b_n = conj(chirp_n) for n = 0..N-1 and n = M-(N-1)..M-1
-    @inbounds for n in 0:N-1
-        b[n+1] = conj(chirp[n+1])
-    end
-    @inbounds for n in N:M-N
-        b[n+1] = zero(T)
-    end
-    @inbounds for n in 1:N-1
-        b[M-n+1] = conj(chirp[n+1])
-    end
-
-    # Twiddle factor for size M FFT (M is always a power of 2)
-    w_M = cispi(T(2)/M)
-
     # FFT of a -> a_fft (forward transform)
     fft_pow2!(a_fft, a, M, 1, 1, 1, 1, _conj(w_M, FFT_FORWARD))
 
-    # FFT of b -> a (forward transform, reuse a since we're done with original a)
-    fft_pow2!(a, b, M, 1, 1, 1, 1, _conj(w_M, FFT_FORWARD))
-
-    # Pointwise multiplication: a_fft *= a (where a now contains FFT(b))
+    # Pointwise multiplication: a_fft *= b_fft
     @inbounds for i in 1:M
-        a_fft[i] *= a[i]
+        a_fft[i] *= b_fft[i]
     end
 
-    # Inverse FFT: a_fft -> b (backward transform, reuse b for result)
-    fft_pow2!(b, a_fft, M, 1, 1, 1, 1, _conj(w_M, FFT_BACKWARD))
+    # Inverse FFT: a_fft -> a (backward transform, reuse a for result)
+    fft_pow2!(a, a_fft, M, 1, 1, 1, 1, _conj(w_M, FFT_BACKWARD))
 
     # Extract first N elements and multiply by chirp, normalizing by M
     Minv = T(1) / M
     @inbounds for k in 0:N-1
-        out[start_out + k*stride_out] = b[k+1] * chirp[k+1] * Minv
+        out[start_out + k*stride_out] = a[k+1] * chirp[k+1] * Minv
     end
 end

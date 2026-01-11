@@ -63,9 +63,10 @@ Recursively instantiate a set of `CallGraphNode`s
 `workspace`: A vector (which gets expanded) of preallocated workspaces
 `s_in`: The stride of the input
 `s_out`: The stride of the output
+`d`: The direction of the transform
 
 """
-function CallGraphNode!(nodes::Vector{CallGraphNode{T}}, N::Int, workspace::Vector{Vector{T}}, s_in::Int, s_out::Int)::Int where {T}
+function CallGraphNode!(nodes::Vector{CallGraphNode{T}}, N::Int, workspace::Vector{Vector{T}}, s_in::Int, s_out::Int, d::Direction)::Int where {T}
     if N == 0
         throw(DimensionMismatch("array has to be non-empty"))
     end
@@ -87,12 +88,35 @@ function CallGraphNode!(nodes::Vector{CallGraphNode{T}}, N::Int, workspace::Vect
     end
     if N == 1 || Primes.isprime(N)
         if N >= 13
-            # Allocate workspace for Bluestein algorithm
-            # Need: chirp (size N), a (size M), a_fft (size M), b (size M)
+            # Allocate and precompute workspace for Bluestein algorithm
+            # Workspace layout: [chirp(N), b_fft(M), a(M), a_fft(M)]
             # where M = nextpow(2, 2*N-1)
-            # Note: b can be reused for result after FFT operations
+            # chirp is precomputed here, b_fft will be lazily computed on first use
             M = nextpow(2, 2*N - 1)
-            push!(workspace, Vector{T}(undef, 3*M + N))
+            tmp = zeros(T, 2*M + N)
+
+            # Precompute chirp sequence: chirp[n] = w^(n²/2)
+            # Apply direction: for forward use conj(w), for backward use w
+            w_dir = d == FFT_FORWARD ? conj(w) : w
+            w_half = sqrt(w_dir)
+            chirp_power = one(T)
+            chirp_mult = w_half
+            @inbounds for n in 0:N-1
+                tmp[n+1] = chirp_power
+                chirp_power *= chirp_mult
+                chirp_mult *= w_dir
+            end
+
+            # Store b vector (not yet FFT'd) in the b_fft section for now
+            # It will be transformed to FFT(b) on first call to fft_bluestein!
+            @inbounds for n in 0:N-1
+                tmp[N+n+1] = conj(tmp[n+1])  # b[n] = conj(chirp[n])
+            end
+            @inbounds for n in 1:N-1
+                tmp[N+M-n+1] = conj(tmp[n+1])  # b[M-n] = conj(chirp[n])
+            end
+
+            push!(workspace, tmp)
             push!(nodes, CallGraphNode(0, 0, bluesteinFFT, N, s_in, s_out, w))
         else
             push!(workspace, T[])
@@ -117,8 +141,8 @@ function CallGraphNode!(nodes::Vector{CallGraphNode{T}}, N::Int, workspace::Vect
     push!(nodes, CallGraphNode(0, 0, dft, N, s_in, s_out, w))
     sz = length(nodes)
     push!(workspace, Vector{T}(undef, N))
-    left_len = CallGraphNode!(nodes, N1, workspace, N2, N2*s_out)
-    right_len = CallGraphNode!(nodes, N2, workspace, N1*s_in, 1)
+    left_len = CallGraphNode!(nodes, N1, workspace, N2, N2*s_out, d)
+    right_len = CallGraphNode!(nodes, N2, workspace, N1*s_in, 1, d)
     nodes[sz] = CallGraphNode(1, 1 + left_len, compositeFFT, N, s_in, s_out, w)
     return 1 + left_len + right_len
 end
@@ -128,9 +152,9 @@ $(TYPEDSIGNATURES)
 Instantiate a CallGraph from a number `N`
 
 """
-function CallGraph{T}(N::Int) where {T}
+function CallGraph{T}(N::Int, d::Direction=FFT_FORWARD) where {T}
     nodes = CallGraphNode{T}[]
     workspace = Vector{Vector{T}}()
-    CallGraphNode!(nodes, N, workspace, 1, 1)
+    CallGraphNode!(nodes, N, workspace, 1, 1, d)
     CallGraph(nodes, workspace)
 end
