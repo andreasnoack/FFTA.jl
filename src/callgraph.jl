@@ -1,6 +1,6 @@
 @enum Direction FFT_FORWARD=-1 FFT_BACKWARD=1
 @enum Pow24 POW2=2 POW4=1
-@enum FFTEnum compositeFFT dft pow2FFT pow3FFT pow4FFT
+@enum FFTEnum compositeFFT dft pow2FFT pow3FFT pow4FFT bluesteinFFT
 
 """
 $(TYPEDSIGNATURES)
@@ -87,7 +87,11 @@ function CallGraphNode!(nodes::Vector{CallGraphNode{T}}, N::Int, workspace::Vect
     end
     if N == 1 || Primes.isprime(N)
         push!(workspace, T[])
-        push!(nodes, CallGraphNode(0, 0, dft, N, s_in, s_out, w))
+        if N >= 13
+            push!(nodes, CallGraphNode(0, 0, bluesteinFFT, N, s_in, s_out, w))
+        else
+            push!(nodes, CallGraphNode(0, 0, dft, N, s_in, s_out, w))
+        end
         return 1
     end
     Ns = [first(x) for x in collect(Primes.factor(N)) for _ in 1:last(x)]

@@ -24,6 +24,8 @@ function fft!(out::AbstractVector{T}, in::AbstractVector{T}, start_out::Int, sta
                 fft_pow3!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d), _m_120, _p_120)
             elseif t === pow4FFT
                 fft_pow4!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d))
+            elseif t === bluesteinFFT
+                fft_bluestein!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d))
             else
                 throw(ArgumentError("kernel not implemented"))
             end
@@ -287,5 +289,83 @@ function fft_pow3!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         @muladd out[k2] = y_k0 + y_k1*wk1*minus120 + y_k2*wk2*plus120
         wk1 *= w1
         wk2 *= w2
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+Bluestein's FFT algorithm, O(N log N) for arbitrary N
+
+Bluestein's algorithm converts an FFT of size N into a convolution, which can
+be computed using FFTs of size M where M is a power of 2 (or composite) >= 2N-1.
+
+# Arguments
+`out`: Output vector
+`in`: Input vector
+`N`: Size of the transform
+`start_out`: Index of the first element of the output vector
+`stride_out`: Stride of the output vector
+`start_in`: Index of the first element of the input vector
+`stride_in`: Stride of the input vector
+`w`: The value `cispi(direction_sign(d) * 2 / N)`
+
+"""
+function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_out::Int, stride_out::Int, start_in::Int, stride_in::Int, w::T) where {T, U}
+    # Find the next power of 2 >= 2N-1
+    M = nextpow(2, 2*N - 1)
+
+    # Compute chirp sequence w_n = exp(-πi*n²/N) for n = 0..N-1
+    # Note: w = exp(2πi/N), so w^(n²/2) = exp(πi*n²/N)
+    # We want exp(-πi*n²/N) = conj(w^(n²/2))
+    # Use recurrence: w^(n²/2) = w^((n-1)²/2) * w^((2n-1)/2)
+    chirp = Vector{T}(undef, N)
+    w_half = sqrt(w)
+    chirp_power = one(T)
+    chirp_mult = w_half
+    @inbounds for n in 0:N-1
+        chirp[n+1] = conj(chirp_power)
+        chirp_power *= chirp_mult
+        chirp_mult *= w
+    end
+
+    # Create input sequence a_n = x_n * chirp_n
+    a = zeros(T, M)
+    @inbounds for n in 0:N-1
+        a[n+1] = in[start_in + n*stride_in] * chirp[n+1]
+    end
+
+    # Create convolution kernel b_n = conj(chirp_n) for n = 0..N-1 and n = M-(N-1)..M-1
+    b = zeros(T, M)
+    @inbounds for n in 0:N-1
+        b[n+1] = conj(chirp[n+1])
+    end
+    @inbounds for n in 1:N-1
+        b[M-n+1] = conj(chirp[n+1])
+    end
+
+    # Create a call graph for size M FFT
+    g = CallGraph{T}(M)
+
+    # FFT of a
+    a_fft = similar(a)
+    fft!(a_fft, a, 1, 1, FFT_FORWARD, g[1].type, g, 1)
+
+    # FFT of b
+    b_fft = similar(b)
+    fft!(b_fft, b, 1, 1, FFT_FORWARD, g[1].type, g, 1)
+
+    # Pointwise multiplication
+    @inbounds for i in 1:M
+        a_fft[i] *= b_fft[i]
+    end
+
+    # Inverse FFT
+    result = similar(a_fft)
+    fft!(result, a_fft, 1, 1, FFT_BACKWARD, g[1].type, g, 1)
+
+    # Extract first N elements and multiply by chirp, normalizing by M
+    Minv = T(1) / M
+    @inbounds for k in 0:N-1
+        out[start_out + k*stride_out] = result[k+1] * chirp[k+1] * Minv
     end
 end
