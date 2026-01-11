@@ -320,13 +320,19 @@ function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, s
     # Extract workspace from call graph
     tmp = g.workspace[idx]
 
-    # Extract views from workspace
-    # workspace layout: [chirp(N), b_fft(M), a(M), a_fft(M)]
-    # chirp is precomputed, b_fft starts as b and is FFT'd on first use
-    chirp = view(tmp, 1:N)
-    b_fft = view(tmp, N+1:N+M)
-    a = view(tmp, N+M+1:N+2M)
-    a_fft = view(tmp, N+2M+1:2*N+2M)
+    # Extract views from workspace based on direction
+    # workspace layout: [chirp_fwd(N), chirp_bwd(N), b_fwd(M), b_bwd(M), a(M), a_fft(M)]
+    # Both forward and backward chirp and b vectors are precomputed
+    # b vectors start as b and are lazily transformed to FFT(b) on first use
+    if d == FFT_FORWARD
+        chirp = view(tmp, 1:N)
+        b_fft = view(tmp, 2*N+1:2*N+M)
+    else  # FFT_BACKWARD
+        chirp = view(tmp, N+1:2*N)
+        b_fft = view(tmp, 2*N+M+1:2*N+2*M)
+    end
+    a = view(tmp, 2*N+2*M+1:2*N+3*M)
+    a_fft = view(tmp, 2*N+3*M+1:2*N+4*M)
 
     # Twiddle factor for size M FFT (M is always a power of 2)
     w_M = cispi(T(2)/M)
