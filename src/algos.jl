@@ -25,7 +25,7 @@ function fft!(out::AbstractVector{T}, in::AbstractVector{T}, start_out::Int, sta
             elseif t === pow4FFT
                 fft_pow4!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d))
             elseif t === bluesteinFFT
-                fft_bluestein!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d), g.workspace[idx], d, g)
+                fft_bluestein!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d), d, g, idx)
             else
                 throw(ArgumentError("kernel not implemented"))
             end
@@ -308,21 +308,24 @@ be computed using FFTs of size M where M is a power of 2 (or composite) >= 2N-1.
 `start_in`: Index of the first element of the input vector
 `stride_in`: Stride of the input vector
 `w`: The value `cispi(direction_sign(d) * 2 / N)`
-`workspace`: Pre-allocated workspace of size 2M + N
 `d`: Direction of the transform
-`g`: Call graph (for creating sub-FFT)
+`g`: Call graph
+`idx`: Index of the current transform in the call graph
 
 """
-function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_out::Int, stride_out::Int, start_in::Int, stride_in::Int, w::T, workspace::Vector{T}, d::Direction, g::CallGraph{T}) where {T, U}
+function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_out::Int, stride_out::Int, start_in::Int, stride_in::Int, w::T, d::Direction, g::CallGraph{T}, idx::Int) where {T, U}
     # Find the next power of 2 >= 2N-1
     M = nextpow(2, 2*N - 1)
 
+    # Extract workspace from call graph
+    tmp = g.workspace[idx]
+
     # Extract views from workspace
     # workspace layout: [chirp(N), a(M), a_fft(M), b(M)]
-    chirp = view(workspace, 1:N)
-    a = view(workspace, N+1:N+M)
-    a_fft = view(workspace, N+M+1:N+2M)
-    b = view(workspace, N+2M+1:N+3M)
+    chirp = view(tmp, 1:N)
+    a = view(tmp, N+1:N+M)
+    a_fft = view(tmp, N+M+1:N+2M)
+    b = view(tmp, N+2M+1:N+3M)
 
     # Compute chirp sequence for n = 0..N-1
     # For forward FFT: w = exp(-2πi/N), chirp[n] = w^(n²/2) = exp(-πi*n²/N)
@@ -357,23 +360,22 @@ function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, s
         b[M-n+1] = conj(chirp[n+1])
     end
 
-    # Create a call graph for size M FFT
-    # This is a small overhead (just the graph structure, not data arrays)
-    g_fft = CallGraph{T}(M)
+    # Twiddle factor for size M FFT (M is always a power of 2)
+    w_M = cispi(T(2)/M)
 
-    # FFT of a -> a_fft
-    fft!(a_fft, a, 1, 1, FFT_FORWARD, g_fft[1].type, g_fft, 1)
+    # FFT of a -> a_fft (forward transform)
+    fft_pow2!(a_fft, a, M, 1, 1, 1, 1, _conj(w_M, FFT_FORWARD))
 
-    # FFT of b -> b (reuse b for output since we don't need input anymore)
-    fft!(b, b, 1, 1, FFT_FORWARD, g_fft[1].type, g_fft, 1)
+    # FFT of b -> b (forward transform, reuse b for output)
+    fft_pow2!(b, b, M, 1, 1, 1, 1, _conj(w_M, FFT_FORWARD))
 
     # Pointwise multiplication: a_fft *= b
     @inbounds for i in 1:M
         a_fft[i] *= b[i]
     end
 
-    # Inverse FFT: a_fft -> a (reuse a for result)
-    fft!(a, a_fft, 1, 1, FFT_BACKWARD, g_fft[1].type, g_fft, 1)
+    # Inverse FFT: a_fft -> a (backward transform, reuse a for result)
+    fft_pow2!(a, a_fft, M, 1, 1, 1, 1, _conj(w_M, FFT_BACKWARD))
 
     # Extract first N elements and multiply by chirp, normalizing by M
     Minv = T(1) / M
