@@ -86,10 +86,15 @@ function CallGraphNode!(nodes::Vector{CallGraphNode{T}}, N::Int, workspace::Vect
         end
     end
     if N == 1 || Primes.isprime(N)
-        push!(workspace, T[])
         if N >= 13
+            # Allocate workspace for Bluestein algorithm
+            # Need: chirp (size N), a_work (size M), b_work (size M)
+            # where M = nextpow(2, 2*N-1)
+            M = nextpow(2, 2*N - 1)
+            push!(workspace, Vector{T}(undef, 2*M + N))
             push!(nodes, CallGraphNode(0, 0, bluesteinFFT, N, s_in, s_out, w))
         else
+            push!(workspace, T[])
             push!(nodes, CallGraphNode(0, 0, dft, N, s_in, s_out, w))
         end
         return 1

@@ -25,7 +25,7 @@ function fft!(out::AbstractVector{T}, in::AbstractVector{T}, start_out::Int, sta
             elseif t === pow4FFT
                 fft_pow4!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d))
             elseif t === bluesteinFFT
-                fft_bluestein!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d))
+                fft_bluestein!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d), g.workspace[idx], d, g)
             else
                 throw(ArgumentError("kernel not implemented"))
             end
@@ -308,18 +308,26 @@ be computed using FFTs of size M where M is a power of 2 (or composite) >= 2N-1.
 `start_in`: Index of the first element of the input vector
 `stride_in`: Stride of the input vector
 `w`: The value `cispi(direction_sign(d) * 2 / N)`
+`workspace`: Pre-allocated workspace of size 2M + N
+`d`: Direction of the transform
+`g`: Call graph (for creating sub-FFT)
 
 """
-function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_out::Int, stride_out::Int, start_in::Int, stride_in::Int, w::T) where {T, U}
+function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_out::Int, stride_out::Int, start_in::Int, stride_in::Int, w::T, workspace::Vector{T}, d::Direction, g::CallGraph{T}) where {T, U}
     # Find the next power of 2 >= 2N-1
     M = nextpow(2, 2*N - 1)
+
+    # Extract views from workspace
+    # workspace layout: [chirp(N), a_work(M), b_work(M)]
+    chirp = view(workspace, 1:N)
+    a_work = view(workspace, N+1:N+M)
+    b_work = view(workspace, N+M+1:N+2M)
 
     # Compute chirp sequence for n = 0..N-1
     # For forward FFT: w = exp(-2πi/N), chirp[n] = w^(n²/2) = exp(-πi*n²/N)
     # For backward FFT: w = exp(+2πi/N), chirp[n] = w^(n²/2) = exp(+πi*n²/N)
     # Use recurrence: w^(n²/2) = w^((n-1)²/2) * w^((2n-1)/2) * w^(-1/2)
     #               = w^((n-1)²/2) * w^(n-1) * w^(1/2)
-    chirp = Vector{T}(undef, N)
     w_half = sqrt(w)
     chirp_power = one(T)
     chirp_mult = w_half
@@ -330,43 +338,45 @@ function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, s
     end
 
     # Create input sequence a_n = x_n * chirp_n
-    a = zeros(T, M)
     @inbounds for n in 0:N-1
-        a[n+1] = in[start_in + n*stride_in] * chirp[n+1]
+        a_work[n+1] = in[start_in + n*stride_in] * chirp[n+1]
+    end
+    @inbounds for n in N:M-1
+        a_work[n+1] = zero(T)
     end
 
     # Create convolution kernel b_n = conj(chirp_n) for n = 0..N-1 and n = M-(N-1)..M-1
-    b = zeros(T, M)
     @inbounds for n in 0:N-1
-        b[n+1] = conj(chirp[n+1])
+        b_work[n+1] = conj(chirp[n+1])
+    end
+    @inbounds for n in N:M-N
+        b_work[n+1] = zero(T)
     end
     @inbounds for n in 1:N-1
-        b[M-n+1] = conj(chirp[n+1])
+        b_work[M-n+1] = conj(chirp[n+1])
     end
 
     # Create a call graph for size M FFT
-    g = CallGraph{T}(M)
+    # This is a small overhead (just the graph structure, not data arrays)
+    g_fft = CallGraph{T}(M)
 
-    # FFT of a
-    a_fft = similar(a)
-    fft!(a_fft, a, 1, 1, FFT_FORWARD, g[1].type, g, 1)
+    # FFT of a (in-place: a_work contains input, then FFT result)
+    fft!(a_work, a_work, 1, 1, FFT_FORWARD, g_fft[1].type, g_fft, 1)
 
-    # FFT of b
-    b_fft = similar(b)
-    fft!(b_fft, b, 1, 1, FFT_FORWARD, g[1].type, g, 1)
+    # FFT of b (in-place: b_work contains input, then FFT result)
+    fft!(b_work, b_work, 1, 1, FFT_FORWARD, g_fft[1].type, g_fft, 1)
 
-    # Pointwise multiplication
+    # Pointwise multiplication (store result in a_work)
     @inbounds for i in 1:M
-        a_fft[i] *= b_fft[i]
+        a_work[i] *= b_work[i]
     end
 
-    # Inverse FFT
-    result = similar(a_fft)
-    fft!(result, a_fft, 1, 1, FFT_BACKWARD, g[1].type, g, 1)
+    # Inverse FFT (in-place: a_work contains input, then result)
+    fft!(a_work, a_work, 1, 1, FFT_BACKWARD, g_fft[1].type, g_fft, 1)
 
     # Extract first N elements and multiply by chirp, normalizing by M
     Minv = T(1) / M
     @inbounds for k in 0:N-1
-        out[start_out + k*stride_out] = result[k+1] * chirp[k+1] * Minv
+        out[start_out + k*stride_out] = a_work[k+1] * chirp[k+1] * Minv
     end
 end
