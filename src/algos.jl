@@ -366,20 +366,20 @@ function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, s
     # FFT of a -> a_fft (forward transform)
     fft_pow2!(a_fft, a, M, 1, 1, 1, 1, _conj(w_M, FFT_FORWARD))
 
-    # FFT of b -> b (forward transform, reuse b for output)
-    fft_pow2!(b, b, M, 1, 1, 1, 1, _conj(w_M, FFT_FORWARD))
+    # FFT of b -> a (forward transform, reuse a since we're done with original a)
+    fft_pow2!(a, b, M, 1, 1, 1, 1, _conj(w_M, FFT_FORWARD))
 
-    # Pointwise multiplication: a_fft *= b
+    # Pointwise multiplication: a_fft *= a (where a now contains FFT(b))
     @inbounds for i in 1:M
-        a_fft[i] *= b[i]
+        a_fft[i] *= a[i]
     end
 
-    # Inverse FFT: a_fft -> a (backward transform, reuse a for result)
-    fft_pow2!(a, a_fft, M, 1, 1, 1, 1, _conj(w_M, FFT_BACKWARD))
+    # Inverse FFT: a_fft -> b (backward transform, reuse b for result)
+    fft_pow2!(b, a_fft, M, 1, 1, 1, 1, _conj(w_M, FFT_BACKWARD))
 
     # Extract first N elements and multiply by chirp, normalizing by M
     Minv = T(1) / M
     @inbounds for k in 0:N-1
-        out[start_out + k*stride_out] = a[k+1] * chirp[k+1] * Minv
+        out[start_out + k*stride_out] = b[k+1] * chirp[k+1] * Minv
     end
 end
