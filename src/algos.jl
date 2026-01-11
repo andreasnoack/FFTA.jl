@@ -318,10 +318,11 @@ function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, s
     M = nextpow(2, 2*N - 1)
 
     # Extract views from workspace
-    # workspace layout: [chirp(N), a_work(M), b_work(M)]
+    # workspace layout: [chirp(N), a(M), a_fft(M), b(M)]
     chirp = view(workspace, 1:N)
-    a_work = view(workspace, N+1:N+M)
-    b_work = view(workspace, N+M+1:N+2M)
+    a = view(workspace, N+1:N+M)
+    a_fft = view(workspace, N+M+1:N+2M)
+    b = view(workspace, N+2M+1:N+3M)
 
     # Compute chirp sequence for n = 0..N-1
     # For forward FFT: w = exp(-2πi/N), chirp[n] = w^(n²/2) = exp(-πi*n²/N)
@@ -339,44 +340,44 @@ function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, s
 
     # Create input sequence a_n = x_n * chirp_n
     @inbounds for n in 0:N-1
-        a_work[n+1] = in[start_in + n*stride_in] * chirp[n+1]
+        a[n+1] = in[start_in + n*stride_in] * chirp[n+1]
     end
     @inbounds for n in N:M-1
-        a_work[n+1] = zero(T)
+        a[n+1] = zero(T)
     end
 
     # Create convolution kernel b_n = conj(chirp_n) for n = 0..N-1 and n = M-(N-1)..M-1
     @inbounds for n in 0:N-1
-        b_work[n+1] = conj(chirp[n+1])
+        b[n+1] = conj(chirp[n+1])
     end
     @inbounds for n in N:M-N
-        b_work[n+1] = zero(T)
+        b[n+1] = zero(T)
     end
     @inbounds for n in 1:N-1
-        b_work[M-n+1] = conj(chirp[n+1])
+        b[M-n+1] = conj(chirp[n+1])
     end
 
     # Create a call graph for size M FFT
     # This is a small overhead (just the graph structure, not data arrays)
     g_fft = CallGraph{T}(M)
 
-    # FFT of a (in-place: a_work contains input, then FFT result)
-    fft!(a_work, a_work, 1, 1, FFT_FORWARD, g_fft[1].type, g_fft, 1)
+    # FFT of a -> a_fft
+    fft!(a_fft, a, 1, 1, FFT_FORWARD, g_fft[1].type, g_fft, 1)
 
-    # FFT of b (in-place: b_work contains input, then FFT result)
-    fft!(b_work, b_work, 1, 1, FFT_FORWARD, g_fft[1].type, g_fft, 1)
+    # FFT of b -> b (reuse b for output since we don't need input anymore)
+    fft!(b, b, 1, 1, FFT_FORWARD, g_fft[1].type, g_fft, 1)
 
-    # Pointwise multiplication (store result in a_work)
+    # Pointwise multiplication: a_fft *= b
     @inbounds for i in 1:M
-        a_work[i] *= b_work[i]
+        a_fft[i] *= b[i]
     end
 
-    # Inverse FFT (in-place: a_work contains input, then result)
-    fft!(a_work, a_work, 1, 1, FFT_BACKWARD, g_fft[1].type, g_fft, 1)
+    # Inverse FFT: a_fft -> a (reuse a for result)
+    fft!(a, a_fft, 1, 1, FFT_BACKWARD, g_fft[1].type, g_fft, 1)
 
     # Extract first N elements and multiply by chirp, normalizing by M
     Minv = T(1) / M
     @inbounds for k in 0:N-1
-        out[start_out + k*stride_out] = a_work[k+1] * chirp[k+1] * Minv
+        out[start_out + k*stride_out] = a[k+1] * chirp[k+1] * Minv
     end
 end
