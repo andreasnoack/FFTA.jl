@@ -16,155 +16,155 @@ Step 1/3: Running FFTA.jl benchmark...
 Benchmarking FFTA.jl...
 ==================================================
 Testing array size: 2 (category: prime)
-  Median time: 0.4419 μs
-  Time per element: 220.95000000000002 ns
+  Median time: 0.6107 μs
+  Time per element: 305.35 ns
 Testing array size: 2 (category: prime)
-  Median time: 0.44580000000000003 μs
-  Time per element: 222.9 ns
+  Median time: 0.7569500000000001 μs
+  Time per element: 378.4750000000001 ns
 Testing array size: 3 (category: prime)
-  Median time: 0.4844 μs
-  Time per element: 161.46666666666667 ns
+  Median time: 0.7845000000000001 μs
+  Time per element: 261.5 ns
 Testing array size: 3 (category: prime)
-  Median time: 0.48690000000000005 μs
-  Time per element: 162.3 ns
+  Median time: 0.66375 μs
+  Time per element: 221.25 ns
 Testing array size: 3 (category: prime)
-  Median time: 0.48395000000000005 μs
-  Time per element: 161.31666666666666 ns
+  Median time: 0.773 μs
+  Time per element: 257.6666666666667 ns
 Testing array size: 4 (category: even_power_of_2)
-  Median time: 0.45280000000000004 μs
-  Time per element: 113.2 ns
+  Median time: 0.7123499999999999 μs
+  Time per element: 178.08749999999998 ns
 Testing array size: 5 (category: prime)
-  Median time: 0.4864 μs
-  Time per element: 97.28 ns
+  Median time: 0.5916000000000001 μs
+  Time per element: 118.32000000000002 ns
 Testing array size: 7 (category: prime)
-  Median time: 0.526 μs
-  Time per element: 75.14285714285715 ns
+  Median time: 0.81355 μs
+  Time per element: 116.22142857142858 ns
 Testing array size: 8 (category: odd_power_of_2)
-  Median time: 0.5040000000000001 μs
-  Time per element: 63.00000000000001 ns
+  Median time: 0.6638000000000001 μs
+  Time per element: 82.975 ns
 Testing array size: 9 (category: power_of_3)
-  Median time: 0.55655 μs
-  Time per element: 61.83888888888889 ns
+  Median time: 0.8371000000000001 μs
+  Time per element: 93.01111111111112 ns
 Testing array size: 12 (category: composite)
-  Median time: 0.94875 μs
-  Time per element: 79.0625 ns
+  Median time: 1.1226500000000001 μs
+  Time per element: 93.55416666666667 ns
 Testing array size: 13 (category: prime)
-  Median time: 0.792 μs
-  Time per element: 60.92307692307693 ns
+  Median time: 0.9753499999999999 μs
+  Time per element: 75.02692307692307 ns
 Testing array size: 16 (category: even_power_of_2)
-  Median time: 0.524 μs
-  Time per element: 32.75 ns
+  Median time: 0.7434000000000001 μs
+  Time per element: 46.462500000000006 ns
 Testing array size: 23 (category: prime)
-  Median time: 1.7843 μs
-  Time per element: 77.57826086956521 ns
+  Median time: 1.9005500000000002 μs
+  Time per element: 82.63260869565218 ns
 Testing array size: 27 (category: power_of_3)
-  Median time: 0.7884500000000001 μs
-  Time per element: 29.201851851851856 ns
+  Median time: 1.13315 μs
+  Time per element: 41.96851851851852 ns
 Testing array size: 32 (category: odd_power_of_2)
-  Median time: 0.8275 μs
-  Time per element: 25.859375 ns
+  Median time: 1.10405 μs
+  Time per element: 34.5015625 ns
 Testing array size: 37 (category: prime)
-  Median time: 4.31005 μs
-  Time per element: 116.48783783783784 ns
+  Median time: 4.4689 μs
+  Time per element: 120.78108108108107 ns
 Testing array size: 59 (category: prime)
-  Median time: 10.9118 μs
-  Time per element: 184.94576271186438 ns
+  Median time: 11.04725 μs
+  Time per element: 187.2415254237288 ns
 Testing array size: 60 (category: composite)
-  Median time: 2.5493 μs
-  Time per element: 42.48833333333334 ns
+  Median time: 4.62565 μs
+  Time per element: 77.09416666666667 ns
 Testing array size: 64 (category: even_power_of_2)
-  Median time: 0.8345 μs
-  Time per element: 13.0390625 ns
+  Median time: 1.1251 μs
+  Time per element: 17.579687500000002 ns
 Testing array size: 81 (category: power_of_3)
-  Median time: 1.6606 μs
-  Time per element: 20.501234567901236 ns
+  Median time: 1.7568000000000001 μs
+  Time per element: 21.68888888888889 ns
 Testing array size: 97 (category: prime)
-  Median time: 29.921200000000002 μs
-  Time per element: 308.46597938144333 ns
+  Median time: 30.045849999999998 μs
+  Time per element: 309.751030927835 ns
 Testing array size: 128 (category: odd_power_of_2)
-  Median time: 2.81075 μs
-  Time per element: 21.958984375 ns
+  Median time: 3.2330500000000004 μs
+  Time per element: 25.258203125 ns
 Testing array size: 157 (category: prime)
-  Median time: 80.53450000000001 μs
-  Time per element: 512.9585987261147 ns
+  Median time: 80.76835000000001 μs
+  Time per element: 514.4480891719745 ns
 Testing array size: 243 (category: power_of_3)
-  Median time: 5.07745 μs
-  Time per element: 20.89485596707819 ns
+  Median time: 5.383100000000001 μs
+  Time per element: 22.152674897119347 ns
 Testing array size: 256 (category: even_power_of_2)
-  Median time: 2.5187 μs
-  Time per element: 9.838671875000001 ns
+  Median time: 3.2916499999999997 μs
+  Time per element: 12.858007812499999 ns
 Testing array size: 257 (category: prime)
-  Median time: 217.3544 μs
-  Time per element: 845.7369649805447 ns
+  Median time: 217.46800000000002 μs
+  Time per element: 846.1789883268483 ns
 Testing array size: 300 (category: composite)
-  Median time: 12.21625 μs
-  Time per element: 40.72083333333333 ns
+  Median time: 16.1638 μs
+  Time per element: 53.879333333333335 ns
 Testing array size: 409 (category: prime)
-  Median time: 554.32655 μs
-  Time per element: 1355.3216381418092 ns
+  Median time: 554.2365500000001 μs
+  Time per element: 1355.1015892420542 ns
 Testing array size: 512 (category: odd_power_of_2)
-  Median time: 10.9634 μs
-  Time per element: 21.412890625000003 ns
+  Median time: 10.884400000000001 μs
+  Time per element: 21.25859375 ns
 Testing array size: 673 (category: prime)
-  Median time: 1507.1434 μs
-  Time per element: 2239.4404160475483 ns
+  Median time: 1506.90525 μs
+  Time per element: 2239.086552748886 ns
 Testing array size: 729 (category: power_of_3)
-  Median time: 15.956650000000003 μs
-  Time per element: 21.888408779149525 ns
+  Median time: 16.4022 μs
+  Time per element: 22.499588477366256 ns
 Testing array size: 1024 (category: even_power_of_2)
-  Median time: 8.876000000000001 μs
-  Time per element: 8.667968750000002 ns
+  Median time: 9.2408 μs
+  Time per element: 9.02421875 ns
 Testing array size: 1091 (category: prime)
-  Median time: 3972.4632500000007 μs
-  Time per element: 3641.1212190650785 ns
+  Median time: 3971.7288999999996 μs
+  Time per element: 3640.4481209899172 ns
 Testing array size: 1777 (category: prime)
-  Median time: 10557.28965 μs
-  Time per element: 5941.074648283625 ns
+  Median time: 10555.755800000003 μs
+  Time per element: 5940.211480022511 ns
 Testing array size: 2048 (category: odd_power_of_2)
-  Median time: 49.625550000000004 μs
-  Time per element: 24.2312255859375 ns
+  Median time: 50.2601 μs
+  Time per element: 24.541064453125003 ns
 Testing array size: 2100 (category: composite)
-  Median time: 122.57110000000002 μs
-  Time per element: 58.36719047619048 ns
+  Median time: 128.65665 μs
+  Time per element: 61.265071428571424 ns
 Testing array size: 2187 (category: power_of_3)
-  Median time: 53.5332 μs
-  Time per element: 24.477914951989025 ns
+  Median time: 53.51680000000001 μs
+  Time per element: 24.470416095107456 ns
 Testing array size: 2879 (category: prime)
-  Median time: 27746.323200000003 μs
-  Time per element: 9637.486349426885 ns
+  Median time: 27744.4899 μs
+  Time per element: 9636.849565821465 ns
 Testing array size: 4096 (category: even_power_of_2)
-  Median time: 65.0617 μs
-  Time per element: 15.884204101562501 ns
+  Median time: 66.28825 μs
+  Time per element: 16.18365478515625 ns
 Testing array size: 4673 (category: prime)
-  Median time: 73169.3391 μs
-  Time per element: 15657.894093729936 ns
+  Median time: 73148.8002 μs
+  Time per element: 15653.498865824953 ns
 Testing array size: 6561 (category: power_of_3)
-  Median time: 220.92405 μs
-  Time per element: 33.67231367169639 ns
+  Median time: 224.48305 μs
+  Time per element: 34.21476146928822 ns
 Testing array size: 7583 (category: prime)
-  Median time: 192701.72869999998 μs
-  Time per element: 25412.333997098773 ns
+  Median time: 192684.2331 μs
+  Time per element: 25410.026783594887 ns
 Testing array size: 8192 (category: odd_power_of_2)
-  Median time: 278.74235000000004 μs
-  Time per element: 34.02616577148438 ns
+  Median time: 283.4303 μs
+  Time per element: 34.59842529296875 ns
 Testing array size: 12323 (category: prime)
-  Median time: 509165.7876000001 μs
-  Time per element: 41318.33056885499 ns
+  Median time: 509032.47800000006 μs
+  Time per element: 41307.51261868052 ns
 Testing array size: 16384 (category: even_power_of_2)
-  Median time: 292.50325000000004 μs
-  Time per element: 17.852981567382816 ns
+  Median time: 302.42835 μs
+  Time per element: 18.458761596679686 ns
 Testing array size: 19683 (category: power_of_3)
-  Median time: 750.0393 μs
-  Time per element: 38.10594421582076 ns
+  Median time: 614.08015 μs
+  Time per element: 31.198503784992123 ns
 Testing array size: 19997 (category: prime)
-  Median time: 1.3420238749000002e6 μs
-  Time per element: 67111.26043406512 ns
+  Median time: 1.3414740976e6 μs
+  Time per element: 67083.76744511677 ns
 Testing array size: 23100 (category: composite)
-  Median time: 1607.1501 μs
-  Time per element: 69.57359740259741 ns
+  Median time: 1697.0085500000002 μs
+  Time per element: 73.4635735930736 ns
 Testing array size: 32768 (category: odd_power_of_2)
-  Median time: 1082.12205 μs
-  Time per element: 33.02374420166015 ns
+  Median time: 1078.7284500000003 μs
+  Time per element: 32.92017974853517 ns
 
 Results saved to: /home/runner/work/FFTA.jl/FFTA.jl/benchmark/ffta_env/../results_ffta.json
 
@@ -175,155 +175,155 @@ Step 2/3: Running FFTW.jl benchmark...
 Benchmarking FFTW.jl...
 ==================================================
 Testing array size: 2 (category: prime)
-  Median time: 2.6264000000000003 μs
-  Time per element: 1313.2000000000003 ns
+  Median time: 2.9526 μs
+  Time per element: 1476.3 ns
 Testing array size: 2 (category: prime)
-  Median time: 2.6604000000000005 μs
-  Time per element: 1330.2000000000003 ns
+  Median time: 2.8854 μs
+  Time per element: 1442.7000000000003 ns
 Testing array size: 3 (category: prime)
-  Median time: 2.63895 μs
-  Time per element: 879.65 ns
+  Median time: 2.7661499999999997 μs
+  Time per element: 922.05 ns
 Testing array size: 3 (category: prime)
-  Median time: 2.70555 μs
-  Time per element: 901.8500000000001 ns
+  Median time: 2.8739000000000003 μs
+  Time per element: 957.9666666666668 ns
 Testing array size: 3 (category: prime)
-  Median time: 2.6354 μs
-  Time per element: 878.4666666666667 ns
+  Median time: 3.1429000000000005 μs
+  Time per element: 1047.6333333333334 ns
 Testing array size: 4 (category: even_power_of_2)
-  Median time: 2.9199 μs
-  Time per element: 729.975 ns
+  Median time: 3.1509 μs
+  Time per element: 787.725 ns
 Testing array size: 5 (category: prime)
-  Median time: 2.9770500000000006 μs
-  Time per element: 595.4100000000001 ns
+  Median time: 3.6733500000000006 μs
+  Time per element: 734.6700000000002 ns
 Testing array size: 7 (category: prime)
-  Median time: 2.8728000000000002 μs
-  Time per element: 410.40000000000003 ns
+  Median time: 4.0561 μs
+  Time per element: 579.4428571428572 ns
 Testing array size: 8 (category: odd_power_of_2)
-  Median time: 2.78865 μs
-  Time per element: 348.58125 ns
+  Median time: 3.1629 μs
+  Time per element: 395.3625 ns
 Testing array size: 9 (category: power_of_3)
-  Median time: 2.9589499999999997 μs
-  Time per element: 328.77222222222224 ns
+  Median time: 4.2725 μs
+  Time per element: 474.72222222222223 ns
 Testing array size: 12 (category: composite)
-  Median time: 3.0151000000000003 μs
-  Time per element: 251.25833333333333 ns
+  Median time: 3.16695 μs
+  Time per element: 263.9125 ns
 Testing array size: 13 (category: prime)
-  Median time: 3.1083000000000003 μs
-  Time per element: 239.10000000000002 ns
+  Median time: 4.1177 μs
+  Time per element: 316.7461538461539 ns
 Testing array size: 16 (category: even_power_of_2)
-  Median time: 3.197 μs
-  Time per element: 199.8125 ns
+  Median time: 4.4989 μs
+  Time per element: 281.18125000000003 ns
 Testing array size: 23 (category: prime)
-  Median time: 2.6048500000000008 μs
-  Time per element: 113.25434782608698 ns
+  Median time: 3.0302 μs
+  Time per element: 131.7478260869565 ns
 Testing array size: 27 (category: power_of_3)
-  Median time: 5.685100000000001 μs
-  Time per element: 210.5592592592593 ns
+  Median time: 5.9672 μs
+  Time per element: 221.0074074074074 ns
 Testing array size: 32 (category: odd_power_of_2)
-  Median time: 3.3352500000000003 μs
-  Time per element: 104.22656250000001 ns
+  Median time: 3.3071499999999996 μs
+  Time per element: 103.34843749999999 ns
 Testing array size: 37 (category: prime)
-  Median time: 48.876050000000006 μs
-  Time per element: 1320.9743243243245 ns
+  Median time: 48.0871 μs
+  Time per element: 1299.6513513513514 ns
 Testing array size: 59 (category: prime)
-  Median time: 14.176950000000001 μs
-  Time per element: 240.28728813559326 ns
+  Median time: 13.971150000000003 μs
+  Time per element: 236.79915254237292 ns
 Testing array size: 60 (category: composite)
-  Median time: 6.183050000000001 μs
-  Time per element: 103.05083333333334 ns
+  Median time: 7.938350000000002 μs
+  Time per element: 132.30583333333334 ns
 Testing array size: 64 (category: even_power_of_2)
-  Median time: 6.469500000000001 μs
-  Time per element: 101.08593750000001 ns
+  Median time: 6.668500000000001 μs
+  Time per element: 104.19531250000001 ns
 Testing array size: 81 (category: power_of_3)
-  Median time: 6.0638000000000005 μs
-  Time per element: 74.86172839506173 ns
+  Median time: 6.4906500000000005 μs
+  Time per element: 80.13148148148149 ns
 Testing array size: 97 (category: prime)
-  Median time: 25.14035 μs
-  Time per element: 259.17886597938144 ns
+  Median time: 24.385700000000003 μs
+  Time per element: 251.398969072165 ns
 Testing array size: 128 (category: odd_power_of_2)
-  Median time: 6.3413 μs
-  Time per element: 49.54140625 ns
+  Median time: 6.203600000000001 μs
+  Time per element: 48.46562500000001 ns
 Testing array size: 157 (category: prime)
-  Median time: 18.9358 μs
-  Time per element: 120.61019108280254 ns
+  Median time: 20.3927 μs
+  Time per element: 129.88980891719748 ns
 Testing array size: 243 (category: power_of_3)
-  Median time: 12.6696 μs
-  Time per element: 52.138271604938275 ns
+  Median time: 13.573450000000001 μs
+  Time per element: 55.857818930041155 ns
 Testing array size: 256 (category: even_power_of_2)
-  Median time: 7.032600000000001 μs
-  Time per element: 27.471093750000005 ns
+  Median time: 6.977 μs
+  Time per element: 27.25390625 ns
 Testing array size: 257 (category: prime)
-  Median time: 29.070650000000004 μs
-  Time per element: 113.11536964980546 ns
+  Median time: 28.794450000000005 μs
+  Time per element: 112.04066147859923 ns
 Testing array size: 300 (category: composite)
-  Median time: 7.4263 μs
-  Time per element: 24.754333333333335 ns
+  Median time: 8.5435 μs
+  Time per element: 28.478333333333335 ns
 Testing array size: 409 (category: prime)
-  Median time: 56.879900000000006 μs
-  Time per element: 139.07066014669928 ns
+  Median time: 57.83380000000001 μs
+  Time per element: 141.4029339853301 ns
 Testing array size: 512 (category: odd_power_of_2)
-  Median time: 8.3335 μs
-  Time per element: 16.2763671875 ns
+  Median time: 10.0904 μs
+  Time per element: 19.707812500000003 ns
 Testing array size: 673 (category: prime)
-  Median time: 79.00265 μs
-  Time per element: 117.38878157503714 ns
+  Median time: 81.01670000000001 μs
+  Time per element: 120.38142644873702 ns
 Testing array size: 729 (category: power_of_3)
-  Median time: 14.9809 μs
-  Time per element: 20.549931412894377 ns
+  Median time: 14.772700000000002 μs
+  Time per element: 20.26433470507545 ns
 Testing array size: 1024 (category: even_power_of_2)
-  Median time: 10.555150000000001 μs
-  Time per element: 10.307763671875001 ns
+  Median time: 11.93835 μs
+  Time per element: 11.658544921874999 ns
 Testing array size: 1091 (category: prime)
-  Median time: 105.51755000000001 μs
-  Time per element: 96.71636113657196 ns
+  Median time: 108.12850000000002 μs
+  Time per element: 99.10953253895511 ns
 Testing array size: 1777 (category: prime)
-  Median time: 165.93365000000003 μs
-  Time per element: 93.37853123241419 ns
+  Median time: 160.6393 μs
+  Time per element: 90.3991558806978 ns
 Testing array size: 2048 (category: odd_power_of_2)
-  Median time: 15.3591 μs
-  Time per element: 7.499560546875 ns
+  Median time: 15.6724 μs
+  Time per element: 7.6525390625 ns
 Testing array size: 2100 (category: composite)
-  Median time: 31.2878 μs
-  Time per element: 14.898952380952382 ns
+  Median time: 30.5692 μs
+  Time per element: 14.556761904761904 ns
 Testing array size: 2187 (category: power_of_3)
-  Median time: 30.952650000000002 μs
-  Time per element: 14.153017832647464 ns
+  Median time: 31.592200000000005 μs
+  Time per element: 14.445450388660268 ns
 Testing array size: 2879 (category: prime)
-  Median time: 291.92435 μs
-  Time per element: 101.39782910732893 ns
+  Median time: 300.58455000000004 μs
+  Time per element: 104.40588746092394 ns
 Testing array size: 4096 (category: even_power_of_2)
-  Median time: 40.38325 μs
-  Time per element: 9.85919189453125 ns
+  Median time: 43.5696 μs
+  Time per element: 10.637109375000001 ns
 Testing array size: 4673 (category: prime)
-  Median time: 465.3113 μs
-  Time per element: 99.57442756259364 ns
+  Median time: 488.8096 μs
+  Time per element: 104.60295313503103 ns
 Testing array size: 6561 (category: power_of_3)
-  Median time: 67.92755000000001 μs
-  Time per element: 10.353231214753851 ns
+  Median time: 69.92245 μs
+  Time per element: 10.657285474775188 ns
 Testing array size: 7583 (category: prime)
-  Median time: 903.1945500000002 μs
-  Time per element: 119.10781353026509 ns
+  Median time: 929.67395 μs
+  Time per element: 122.59975603323224 ns
 Testing array size: 8192 (category: odd_power_of_2)
-  Median time: 96.4371 μs
-  Time per element: 11.77210693359375 ns
+  Median time: 97.09085000000002 μs
+  Time per element: 11.851910400390626 ns
 Testing array size: 12323 (category: prime)
-  Median time: 996.6762 μs
-  Time per element: 80.87934756147042 ns
+  Median time: 1018.4346999999999 μs
+  Time per element: 82.64502961941085 ns
 Testing array size: 16384 (category: even_power_of_2)
-  Median time: 199.9024 μs
-  Time per element: 12.201074218750001 ns
+  Median time: 223.0037 μs
+  Time per element: 13.611065673828126 ns
 Testing array size: 19683 (category: power_of_3)
-  Median time: 191.22725 μs
-  Time per element: 9.715350810343953 ns
+  Median time: 193.16245000000004 μs
+  Time per element: 9.813669156124575 ns
 Testing array size: 19997 (category: prime)
-  Median time: 1507.7161999999998 μs
-  Time per element: 75.39711956793519 ns
+  Median time: 1570.0365000000002 μs
+  Time per element: 78.51360204030604 ns
 Testing array size: 23100 (category: composite)
-  Median time: 202.94205 μs
-  Time per element: 8.78537012987013 ns
+  Median time: 211.77380000000002 μs
+  Time per element: 9.167696969696971 ns
 Testing array size: 32768 (category: odd_power_of_2)
-  Median time: 420.35055 μs
-  Time per element: 12.82808074951172 ns
+  Median time: 465.55045000000007 μs
+  Time per element: 14.207472229003908 ns
 
 Results saved to: /home/runner/work/FFTA.jl/FFTA.jl/benchmark/fftw_env/../results_fftw.json
 
