@@ -314,16 +314,17 @@ function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, s
     # Find the next power of 2 >= 2N-1
     M = nextpow(2, 2*N - 1)
 
-    # Compute chirp sequence w_n = exp(-πi*n²/N) for n = 0..N-1
-    # Note: w = exp(2πi/N), so w^(n²/2) = exp(πi*n²/N)
-    # We want exp(-πi*n²/N) = conj(w^(n²/2))
-    # Use recurrence: w^(n²/2) = w^((n-1)²/2) * w^((2n-1)/2)
+    # Compute chirp sequence for n = 0..N-1
+    # For forward FFT: w = exp(-2πi/N), chirp[n] = w^(n²/2) = exp(-πi*n²/N)
+    # For backward FFT: w = exp(+2πi/N), chirp[n] = w^(n²/2) = exp(+πi*n²/N)
+    # Use recurrence: w^(n²/2) = w^((n-1)²/2) * w^((2n-1)/2) * w^(-1/2)
+    #               = w^((n-1)²/2) * w^(n-1) * w^(1/2)
     chirp = Vector{T}(undef, N)
     w_half = sqrt(w)
     chirp_power = one(T)
     chirp_mult = w_half
     @inbounds for n in 0:N-1
-        chirp[n+1] = conj(chirp_power)
+        chirp[n+1] = chirp_power
         chirp_power *= chirp_mult
         chirp_mult *= w
     end
