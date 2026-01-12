@@ -260,8 +260,9 @@ Power of 8 FFT, in place
 """
 function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_out::Int, stride_out::Int, start_in::Int, stride_in::Int, w::T) where {T, U}
     minusi = -sign(imag(w))*im
+    w_sqrt = cispi(T(-1)/4)  # e^(-iπ/4) = (1-i)/√2
     @inbounds if N == 8
-        # Base case: 8-point FFT using optimized butterfly
+        # Base case: 8-point FFT using radix-8 butterfly
         x0 = in[start_in]
         x1 = in[start_in +   stride_in]
         x2 = in[start_in + 2*stride_in]
@@ -271,35 +272,35 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         x6 = in[start_in + 6*stride_in]
         x7 = in[start_in + 7*stride_in]
 
-        # Stage 1: combine pairs
-        t0 = x0 + x4
-        t1 = x0 - x4
-        t2 = x2 + x6
-        t3 = (x2 - x6) * minusi
-        t4 = x1 + x5
-        t5 = x1 - x5
-        t6 = x3 + x7
-        t7 = (x3 - x7) * minusi
+        # Stage 1: Length-2 butterflies
+        a0 = x0 + x4
+        a4 = x0 - x4
+        a2 = x2 + x6
+        a6 = (x2 - x6) * minusi
+        a1 = x1 + x5
+        a5 = (x1 - x5) * w_sqrt
+        a3 = x3 + x7
+        a7 = (x3 - x7) * w_sqrt * minusi
 
-        # Stage 2: 4-point butterflies
-        s0 = t0 + t2
-        s1 = t1 + t3
-        s2 = t0 - t2
-        s3 = t1 - t3
-        s4 = t4 + t6
-        s5 = (t5 + t7) * cispi(T(-1)/4)  # multiply by e^(-iπ/4) = (1-i)/√2
-        s6 = (t4 - t6) * minusi
-        s7 = (t5 - t7) * cispi(T(-3)/4)  # multiply by e^(-i3π/4) = (-1-i)/√2
+        # Stage 2: Length-4 butterflies
+        b0 = a0 + a2
+        b2 = a0 - a2
+        b1 = a4 + a6
+        b3 = a4 - a6
+        b4 = a1 + a3
+        b6 = (a1 - a3) * minusi
+        b5 = a5 + a7
+        b7 = (a5 - a7) * minusi
 
-        # Stage 3: final combination
-        out[start_out]                = s0 + s4
-        out[start_out +   stride_out] = s1 + s5
-        out[start_out + 2*stride_out] = s2 + s6
-        out[start_out + 3*stride_out] = s3 + s7
-        out[start_out + 4*stride_out] = s0 - s4
-        out[start_out + 5*stride_out] = s1 - s5
-        out[start_out + 6*stride_out] = s2 - s6
-        out[start_out + 7*stride_out] = s3 - s7
+        # Stage 3: Length-8 butterfly
+        out[start_out]                = b0 + b4
+        out[start_out +   stride_out] = b1 + b5
+        out[start_out + 2*stride_out] = b2 + b6
+        out[start_out + 3*stride_out] = b3 + b7
+        out[start_out + 4*stride_out] = b0 - b4
+        out[start_out + 5*stride_out] = b1 - b5
+        out[start_out + 6*stride_out] = b2 - b6
+        out[start_out + 7*stride_out] = b3 - b7
         return
     end
 
@@ -350,35 +351,35 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         ỹ6 = y6 * wk6
         ỹ7 = y7 * wk7
 
-        # Stage 1: combine pairs
-        t0 = y0 + ỹ4
-        t1 = y0 - ỹ4
-        t2 = ỹ2 + ỹ6
-        t3 = (ỹ2 - ỹ6) * minusi
-        t4 = ỹ1 + ỹ5
-        t5 = ỹ1 - ỹ5
-        t6 = ỹ3 + ỹ7
-        t7 = (ỹ3 - ỹ7) * minusi
+        # Stage 1: Length-2 butterflies
+        a0 = y0 + ỹ4
+        a4 = y0 - ỹ4
+        a2 = ỹ2 + ỹ6
+        a6 = (ỹ2 - ỹ6) * minusi
+        a1 = ỹ1 + ỹ5
+        a5 = (ỹ1 - ỹ5) * w_sqrt
+        a3 = ỹ3 + ỹ7
+        a7 = (ỹ3 - ỹ7) * w_sqrt * minusi
 
-        # Stage 2: 4-point butterflies
-        s0 = t0 + t2
-        s1 = t1 + t3
-        s2 = t0 - t2
-        s3 = t1 - t3
-        s4 = t4 + t6
-        s5 = -(t5 + t7) * minusi
-        s6 = (t4 - t6) * minusi
-        s7 = (t5 - t7) * minusi
+        # Stage 2: Length-4 butterflies
+        b0 = a0 + a2
+        b2 = a0 - a2
+        b1 = a4 + a6
+        b3 = a4 - a6
+        b4 = a1 + a3
+        b6 = (a1 - a3) * minusi
+        b5 = a5 + a7
+        b7 = (a5 - a7) * minusi
 
-        # Stage 3: final outputs
-        out[k0] = s0 + s4
-        out[k1] = s1 + s5
-        out[k2] = s2 + s6
-        out[k3] = s3 + s7
-        out[k4] = s0 - s4
-        out[k5] = s1 - s5
-        out[k6] = s2 - s6
-        out[k7] = s3 - s7
+        # Stage 3: Length-8 butterfly
+        out[k0] = b0 + b4
+        out[k1] = b1 + b5
+        out[k2] = b2 + b6
+        out[k3] = b3 + b7
+        out[k4] = b0 - b4
+        out[k5] = b1 - b5
+        out[k6] = b2 - b6
+        out[k7] = b3 - b7
 
         wk1 *= w1
         wk2 *= w2
