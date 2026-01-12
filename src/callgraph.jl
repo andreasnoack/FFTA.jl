@@ -88,14 +88,15 @@ function CallGraphNode!(nodes::Vector{CallGraphNode{T}}, N::Int, workspace::Vect
     if N == 1 || Primes.isprime(N)
         if N >= 13
             # Allocate and precompute workspace for Bluestein algorithm
-            # Workspace layout: [chirp_fwd(N), chirp_bwd(N), b_fwd(M), b_bwd(M), a(M), a_fft(M)]
+            # Workspace layout: [chirp(N), b_fwd(M), b_bwd(M), a(M), a_fft(M)]
             # where M = nextpow(2, 2*N-1)
-            # Both forward and backward chirp and b vectors are precomputed
-            # b_fwd and b_bwd will be lazily transformed to FFT on first use
+            # chirp is stored once (backward uses conjugate)
+            # b_fwd and b_bwd will be FFT'd during plan construction
             M = nextpow(2, 2*N - 1)
-            tmp = zeros(T, 2*N + 4*M)
+            tmp = zeros(T, N + 4*M)
 
-            # Precompute forward chirp: w_fwd = conj(w), chirp_fwd[n] = w_fwd^(n²/2)
+            # Precompute forward chirp: w_fwd = conj(w), chirp[n] = w_fwd^(n²/2)
+            # Backward chirp is conj(chirp), computed on-the-fly
             w_fwd = conj(w)
             w_fwd_half = sqrt(w_fwd)
             chirp_power = one(T)
@@ -106,31 +107,20 @@ function CallGraphNode!(nodes::Vector{CallGraphNode{T}}, N::Int, workspace::Vect
                 chirp_mult *= w_fwd
             end
 
-            # Precompute backward chirp: w_bwd = w, chirp_bwd[n] = w_bwd^(n²/2)
-            w_bwd = w
-            w_bwd_half = sqrt(w_bwd)
-            chirp_power = one(T)
-            chirp_mult = w_bwd_half
+            # Store forward b vector: b_fwd[n] = conj(chirp[n])
             @inbounds for n in 0:N-1
-                tmp[N+n+1] = chirp_power
-                chirp_power *= chirp_mult
-                chirp_mult *= w_bwd
-            end
-
-            # Store forward b vector (not yet FFT'd)
-            @inbounds for n in 0:N-1
-                tmp[2*N+n+1] = conj(tmp[n+1])  # b_fwd[n] = conj(chirp_fwd[n])
+                tmp[N+n+1] = conj(tmp[n+1])
             end
             @inbounds for n in 1:N-1
-                tmp[2*N+M-n+1] = conj(tmp[n+1])  # b_fwd[M-n] = conj(chirp_fwd[n])
+                tmp[N+M-n+1] = conj(tmp[n+1])
             end
 
-            # Store backward b vector (not yet FFT'd)
+            # Store backward b vector: b_bwd[n] = conj(conj(chirp[n])) = chirp[n]
             @inbounds for n in 0:N-1
-                tmp[2*N+M+n+1] = conj(tmp[N+n+1])  # b_bwd[n] = conj(chirp_bwd[n])
+                tmp[N+M+n+1] = tmp[n+1]
             end
             @inbounds for n in 1:N-1
-                tmp[2*N+2*M-n+1] = conj(tmp[N+n+1])  # b_bwd[M-n] = conj(chirp_bwd[n])
+                tmp[N+2*M-n+1] = tmp[n+1]
             end
 
             push!(workspace, tmp)
@@ -175,3 +165,14 @@ function CallGraph{T}(N::Int) where {T}
     CallGraphNode!(nodes, N, workspace, 1, 1)
     CallGraph(nodes, workspace)
 end
+
+"""
+$(TYPEDSIGNATURES)
+Precompute FFT of b vectors for Bluestein algorithm
+
+This function is called from plan.jl after fft_pow2! is available.
+It iterates through the call graph and computes FFT(b_fwd) and FFT(b_bwd)
+for all Bluestein nodes.
+
+"""
+function precompute_bluestein_b_ffts! end
