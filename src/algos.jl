@@ -24,6 +24,8 @@ function fft!(out::AbstractVector{T}, in::AbstractVector{T}, start_out::Int, sta
                 fft_pow3!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d), _m_120, _p_120)
             elseif t === pow4FFT
                 fft_pow4!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d))
+            elseif t === pow8FFT
+                fft_pow8!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d))
             else
                 throw(ArgumentError("kernel not implemented"))
             end
@@ -237,6 +239,154 @@ function fft_pow4!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         wkoe *= w1
         wkeo *= w2
         wkoo *= w3
+    end
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+Power of 8 FFT, in place
+
+# Arguments
+`out`: Output vector
+`in`: Input vector
+`N`: Size of the transform
+`start_out`: Index of the first element of the output vector
+`stride_out`: Stride of the output vector
+`start_in`: Index of the first element of the input vector
+`stride_in`: Stride of the input vector
+`w`: The value `cispi(direction_sign(d) * 2 / N)`
+
+"""
+function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_out::Int, stride_out::Int, start_in::Int, stride_in::Int, w::T) where {T, U}
+    minusi = -sign(imag(w))*im
+    @inbounds if N == 8
+        # Base case: 8-point FFT using optimized butterfly
+        x0 = in[start_in]
+        x1 = in[start_in +   stride_in]
+        x2 = in[start_in + 2*stride_in]
+        x3 = in[start_in + 3*stride_in]
+        x4 = in[start_in + 4*stride_in]
+        x5 = in[start_in + 5*stride_in]
+        x6 = in[start_in + 6*stride_in]
+        x7 = in[start_in + 7*stride_in]
+
+        # Stage 1: combine pairs
+        t0 = x0 + x4
+        t1 = x0 - x4
+        t2 = x2 + x6
+        t3 = (x2 - x6) * minusi
+        t4 = x1 + x5
+        t5 = x1 - x5
+        t6 = x3 + x7
+        t7 = (x3 - x7) * minusi
+
+        # Stage 2: 4-point butterflies
+        s0 = t0 + t2
+        s1 = t1 + t3
+        s2 = t0 - t2
+        s3 = t1 - t3
+        s4 = t4 + t6
+        s5 = (t5 + t7) * cispi(T(-1)/4)  # multiply by e^(-iπ/4) = (1-i)/√2
+        s6 = (t4 - t6) * minusi
+        s7 = (t5 - t7) * cispi(T(-3)/4)  # multiply by e^(-i3π/4) = (-1-i)/√2
+
+        # Stage 3: final combination
+        out[start_out]                = s0 + s4
+        out[start_out +   stride_out] = s1 + s5
+        out[start_out + 2*stride_out] = s2 + s6
+        out[start_out + 3*stride_out] = s3 + s7
+        out[start_out + 4*stride_out] = s0 - s4
+        out[start_out + 5*stride_out] = s1 - s5
+        out[start_out + 6*stride_out] = s2 - s6
+        out[start_out + 7*stride_out] = s3 - s7
+        return
+    end
+
+    m = N ÷ 8
+
+    w1 = w
+    w2 = w*w1
+    w3 = w*w2
+    w4 = w*w3
+    w5 = w*w4
+    w6 = w*w5
+    w7 = w*w6
+    w8 = w*w7
+
+    # Recursively process 8 subproblems
+    fft_pow8!(out, in, m, start_out                 , stride_out, start_in              , stride_in*8, w8)
+    fft_pow8!(out, in, m, start_out +   m*stride_out, stride_out, start_in +   stride_in, stride_in*8, w8)
+    fft_pow8!(out, in, m, start_out + 2*m*stride_out, stride_out, start_in + 2*stride_in, stride_in*8, w8)
+    fft_pow8!(out, in, m, start_out + 3*m*stride_out, stride_out, start_in + 3*stride_in, stride_in*8, w8)
+    fft_pow8!(out, in, m, start_out + 4*m*stride_out, stride_out, start_in + 4*stride_in, stride_in*8, w8)
+    fft_pow8!(out, in, m, start_out + 5*m*stride_out, stride_out, start_in + 5*stride_in, stride_in*8, w8)
+    fft_pow8!(out, in, m, start_out + 6*m*stride_out, stride_out, start_in + 6*stride_in, stride_in*8, w8)
+    fft_pow8!(out, in, m, start_out + 7*m*stride_out, stride_out, start_in + 7*stride_in, stride_in*8, w8)
+
+    # Twiddle factor initialization
+    wk1 = wk2 = wk3 = wk4 = wk5 = wk6 = wk7 = one(T)
+
+    # Combine results with 8-point butterflies
+    @inbounds for k in 0:m-1
+        k0 = start_out +  k          * stride_out
+        k1 = start_out + (k +     m) * stride_out
+        k2 = start_out + (k + 2 * m) * stride_out
+        k3 = start_out + (k + 3 * m) * stride_out
+        k4 = start_out + (k + 4 * m) * stride_out
+        k5 = start_out + (k + 5 * m) * stride_out
+        k6 = start_out + (k + 6 * m) * stride_out
+        k7 = start_out + (k + 7 * m) * stride_out
+
+        y0, y1, y2, y3 = out[k0], out[k1], out[k2], out[k3]
+        y4, y5, y6, y7 = out[k4], out[k5], out[k6], out[k7]
+
+        # Apply twiddle factors
+        ỹ1 = y1 * wk1
+        ỹ2 = y2 * wk2
+        ỹ3 = y3 * wk3
+        ỹ4 = y4 * wk4
+        ỹ5 = y5 * wk5
+        ỹ6 = y6 * wk6
+        ỹ7 = y7 * wk7
+
+        # Stage 1: combine pairs
+        t0 = y0 + ỹ4
+        t1 = y0 - ỹ4
+        t2 = ỹ2 + ỹ6
+        t3 = (ỹ2 - ỹ6) * minusi
+        t4 = ỹ1 + ỹ5
+        t5 = ỹ1 - ỹ5
+        t6 = ỹ3 + ỹ7
+        t7 = (ỹ3 - ỹ7) * minusi
+
+        # Stage 2: 4-point butterflies
+        s0 = t0 + t2
+        s1 = t1 + t3
+        s2 = t0 - t2
+        s3 = t1 - t3
+        s4 = t4 + t6
+        s5 = -(t5 + t7) * minusi
+        s6 = (t4 - t6) * minusi
+        s7 = (t5 - t7) * minusi
+
+        # Stage 3: final outputs
+        out[k0] = s0 + s4
+        out[k1] = s1 + s5
+        out[k2] = s2 + s6
+        out[k3] = s3 + s7
+        out[k4] = s0 - s4
+        out[k5] = s1 - s5
+        out[k6] = s2 - s6
+        out[k7] = s3 - s7
+
+        wk1 *= w1
+        wk2 *= w2
+        wk3 *= w3
+        wk4 *= w4
+        wk5 *= w5
+        wk6 *= w6
+        wk7 *= w7
     end
 end
 

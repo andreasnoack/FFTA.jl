@@ -1,6 +1,6 @@
 @enum Direction FFT_FORWARD=-1 FFT_BACKWARD=1
-@enum Pow24 POW2=2 POW4=1
-@enum FFTEnum compositeFFT dft pow2FFT pow3FFT pow4FFT
+@enum Pow248 POW2=2 POW4=1 POW8=0
+@enum FFTEnum compositeFFT dft pow2FFT pow3FFT pow4FFT pow8FFT
 
 """
 $(TYPEDSIGNATURES)
@@ -42,15 +42,31 @@ Base.getindex(g::CallGraph{T}, i::Int) where {T} = g.nodes[i]
 
 """
 $(TYPEDSIGNATURES)
-Check if `N` is a power of 2 or 4
+Check if `N` is a power of 2, 4, or 8
 
+Returns POW8 (0) if N is a power of 8, POW4 (1) if power of 4, POW2 (2) if power of 2, or nothing otherwise.
 """
-function _ispow24(N::Int)
+function _ispow248(N::Int)
     N < 1 && return nothing
+    # Check for powers of 8
+    while N & 0b111 == 0
+        N >>= 3
+    end
+    if N == 1
+        return POW8
+    end
+    # Check for powers of 4
     while N & 0b11 == 0
         N >>= 2
     end
-    return N < 3 ? Pow24(N) : nothing
+    if N == 1
+        return POW4
+    end
+    # Check for powers of 2
+    while N & 0b1 == 0
+        N >>= 1
+    end
+    return N == 1 ? POW2 : nothing
 end
 
 """
@@ -71,10 +87,15 @@ function CallGraphNode!(nodes::Vector{CallGraphNode{T}}, N::Int, workspace::Vect
     end
     w = cispi(T(2)/N)
     if iseven(N)
-        pow = _ispow24(N)
+        pow = _ispow248(N)
         if !isnothing(pow)
-            if pow == POW4
-                # Even power of 2: use pow4FFT directly
+            if pow == POW8
+                # Power of 8: use pow8FFT directly
+                push!(workspace, T[])
+                push!(nodes, CallGraphNode(0, 0, pow8FFT, N, s_in, s_out, w))
+                return 1
+            elseif pow == POW4
+                # Power of 4: use pow4FFT directly
                 push!(workspace, T[])
                 push!(nodes, CallGraphNode(0, 0, pow4FFT, N, s_in, s_out, w))
                 return 1
