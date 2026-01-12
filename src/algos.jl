@@ -275,18 +275,16 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         # Twiddle factors
         w8_1 = cispi(T(-1)/4)
         w8_3 = cispi(T(-3)/4)
-        w8_5 = cispi(T(-5)/4)
-        w8_7 = cispi(T(-7)/4)
 
         # First level: pairs
         x0_p_x4 = x0 + x4
         x0_m_x4 = x0 - x4
         x1_p_x5 = x1 + x5
-        x1_m_x5 = -(x1 - x5) * w8_1 * minusi
+        x1_m_x5 = (x1 - x5) * w8_1
         x2_p_x6 = x2 + x6
         x2_m_x6 = -(x2 - x6) * minusi
         x3_p_x7 = x3 + x7
-        x3_m_x7 = -(x3 - x7) * w8_3 * minusi
+        x3_m_x7 = (x3 - x7) * w8_3
 
         # Second level: groups of 4
         t0_p_t2 = x0_p_x4 + x2_p_x6
@@ -363,11 +361,11 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         y0_p_y4 = y0 + ỹ4
         y0_m_y4 = y0 - ỹ4
         y1_p_y5 = ỹ1 + ỹ5
-        y1_m_y5 = -(ỹ1 - ỹ5) * w8_1 * minusi
+        y1_m_y5 = (ỹ1 - ỹ5) * w8_1
         y2_p_y6 = ỹ2 + ỹ6
         y2_m_y6 = -(ỹ2 - ỹ6) * minusi
         y3_p_y7 = ỹ3 + ỹ7
-        y3_m_y7 = -(ỹ3 - ỹ7) * w8_3 * minusi
+        y3_m_y7 = (ỹ3 - ỹ7) * w8_3
 
         # Second level: groups of 4
         t0_p_t2 = y0_p_y4 + y2_p_y6
