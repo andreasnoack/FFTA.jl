@@ -272,9 +272,10 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         x6 = in[start_in + 6*stride_in]
         x7 = in[start_in + 7*stride_in]
 
-        # Twiddle factors
-        w8_1 = cispi(T(-1)/4)
-        w8_3 = cispi(T(-3)/4)
+        # Twiddle factors - direction dependent like minusi
+        direction = -sign(imag(w))
+        w8_1 = cispi(T(direction)/4)
+        w8_3 = cispi(T(direction * 3)/4)
 
         # First level: pairs
         x0_p_x4 = x0 + x4
@@ -329,10 +330,11 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
     fft_pow8!(out, in, m, start_out + 6*m*stride_out, stride_out, start_in + 6*stride_in, stride_in*8, w8)
     fft_pow8!(out, in, m, start_out + 7*m*stride_out, stride_out, start_in + 7*stride_in, stride_in*8, w8)
 
-    # Twiddle factors for combining
+    # Twiddle factors for combining - direction dependent
     wk1 = wk2 = wk3 = wk4 = wk5 = wk6 = wk7 = one(T)
-    w8_1 = cispi(T(-1)/4)
-    w8_3 = cispi(T(-3)/4)
+    direction = -sign(imag(w))
+    w8_1 = cispi(T(direction)/4)
+    w8_3 = cispi(T(direction * 3)/4)
 
     @inbounds for k in 0:m-1
         k0 = start_out +  k          * stride_out
