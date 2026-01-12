@@ -73,9 +73,24 @@ function CallGraphNode!(nodes::Vector{CallGraphNode{T}}, N::Int, workspace::Vect
     if iseven(N)
         pow = _ispow24(N)
         if !isnothing(pow)
-            push!(workspace, T[])
-            push!(nodes, CallGraphNode(0, 0, pow == POW2 ? pow2FFT : pow4FFT, N, s_in, s_out, w))
-            return 1
+            if pow == POW4
+                # Even power of 2: use pow4FFT directly
+                push!(workspace, T[])
+                push!(nodes, CallGraphNode(0, 0, pow4FFT, N, s_in, s_out, w))
+                return 1
+            else
+                # Odd power of 2: create composite with pow4FFT + pow2FFT
+                # N = (N/2) * 2, where N/2 is a power of 4
+                N1 = N ÷ 2  # This will be a power of 4
+                N2 = 2       # Remaining power
+                push!(nodes, CallGraphNode(0, 0, dft, N, s_in, s_out, w))
+                sz = length(nodes)
+                push!(workspace, Vector{T}(undef, N))
+                left_len = CallGraphNode!(nodes, N1, workspace, N2, N2*s_out)
+                right_len = CallGraphNode!(nodes, N2, workspace, N1*s_in, 1)
+                nodes[sz] = CallGraphNode(1, 1 + left_len, compositeFFT, N, s_in, s_out, w)
+                return 1 + left_len + right_len
+            end
         end
     end
     if N % 3 == 0
