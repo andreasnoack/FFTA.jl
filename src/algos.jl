@@ -356,14 +356,17 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
 
         # Radix-8 butterfly following same pattern as base case
         # Stage 1: pairs separated by 4
+        w8_1 = cispi(T(-1)/4)
+        w8_3 = cispi(T(-3)/4)
+
         t0 = y0 + ỹ4
         t4 = y0 - ỹ4
         t1 = ỹ1 + ỹ5
-        t5 = -(ỹ1 - ỹ5) * minusi * cispi(T(-1)/4)
+        t5 = (ỹ1 - ỹ5) * w8_1
         t2 = ỹ2 + ỹ6
         t6 = (ỹ2 - ỹ6) * minusi
         t3 = ỹ3 + ỹ7
-        t7 = -(ỹ3 - ỹ7) * minusi * cispi(T(-3)/4)
+        t7 = (ỹ3 - ỹ7) * w8_3
 
         # Stage 2: groups of 4
         s0 = t0 + t2
