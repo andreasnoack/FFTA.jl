@@ -261,7 +261,8 @@ Power of 8 FFT, in place
 function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_out::Int, stride_out::Int, start_in::Int, stride_in::Int, w::T) where {T, U}
     minusi = -sign(imag(w))*im
     @inbounds if N == 8
-        # Base case: 8-point FFT butterfly
+        # Base case: 8-point FFT butterfly following the pattern of fft_pow4!
+        # Read all 8 inputs
         x0 = in[start_in]
         x1 = in[start_in +   stride_in]
         x2 = in[start_in + 2*stride_in]
@@ -271,40 +272,41 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         x6 = in[start_in + 6*stride_in]
         x7 = in[start_in + 7*stride_in]
 
-        # Radix-8 butterfly with all 8 twiddle factors
-        # W_8^1 = e^(-πi/4), W_8^2 = -i, W_8^3 = e^(-3πi/4)
+        # Twiddle factors
         w8_1 = cispi(T(-1)/4)
         w8_3 = cispi(T(-3)/4)
+        w8_5 = cispi(T(-5)/4)
+        w8_7 = cispi(T(-7)/4)
 
-        # Stage 1: pairs separated by 4
-        t0 = x0 + x4
-        t4 = x0 - x4
-        t1 = x1 + x5
-        t5 = (x1 - x5) * w8_1
-        t2 = x2 + x6
-        t6 = (x2 - x6) * minusi
-        t3 = x3 + x7
-        t7 = (x3 - x7) * w8_3
+        # First level: pairs
+        x0_p_x4 = x0 + x4
+        x0_m_x4 = x0 - x4
+        x1_p_x5 = x1 + x5
+        x1_m_x5 = -(x1 - x5) * w8_1 * minusi
+        x2_p_x6 = x2 + x6
+        x2_m_x6 = -(x2 - x6) * minusi
+        x3_p_x7 = x3 + x7
+        x3_m_x7 = -(x3 - x7) * w8_3 * minusi
 
-        # Stage 2: groups of 4
-        s0 = t0 + t2
-        s2 = t0 - t2
-        s1 = t1 + t3
-        s3 = (t1 - t3) * minusi
-        s4 = t4 + t6
-        s6 = (t4 - t6) * minusi
-        s5 = t5 + t7
-        s7 = (t5 - t7) * minusi
+        # Second level: groups of 4
+        t0_p_t2 = x0_p_x4 + x2_p_x6
+        t0_m_t2 = x0_p_x4 - x2_p_x6
+        t1_p_t3 = x1_p_x5 + x3_p_x7
+        t1_m_t3 = -(x1_p_x5 - x3_p_x7) * minusi
+        t4_p_t6 = x0_m_x4 + x2_m_x6
+        t4_m_t6 = x0_m_x4 - x2_m_x6
+        t5_p_t7 = x1_m_x5 + x3_m_x7
+        t5_m_t7 = -(x1_m_x5 - x3_m_x7) * minusi
 
-        # Stage 3: final combination
-        out[start_out]                = s0 + s1
-        out[start_out +   stride_out] = s4 + s5
-        out[start_out + 2*stride_out] = s2 + s3
-        out[start_out + 3*stride_out] = s6 + s7
-        out[start_out + 4*stride_out] = s0 - s1
-        out[start_out + 5*stride_out] = s4 - s5
-        out[start_out + 6*stride_out] = s2 - s3
-        out[start_out + 7*stride_out] = s6 - s7
+        # Final outputs
+        out[start_out]                = t0_p_t2 + t1_p_t3
+        out[start_out +   stride_out] = t4_p_t6 + t5_p_t7
+        out[start_out + 2*stride_out] = t0_m_t2 + t1_m_t3
+        out[start_out + 3*stride_out] = t4_m_t6 + t5_m_t7
+        out[start_out + 4*stride_out] = t0_p_t2 - t1_p_t3
+        out[start_out + 5*stride_out] = t4_p_t6 - t5_p_t7
+        out[start_out + 6*stride_out] = t0_m_t2 - t1_m_t3
+        out[start_out + 7*stride_out] = t4_m_t6 - t5_m_t7
         return
     end
 
@@ -329,8 +331,10 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
     fft_pow8!(out, in, m, start_out + 6*m*stride_out, stride_out, start_in + 6*stride_in, stride_in*8, w8)
     fft_pow8!(out, in, m, start_out + 7*m*stride_out, stride_out, start_in + 7*stride_in, stride_in*8, w8)
 
-    # Twiddle factors for all 8 branches
+    # Twiddle factors for combining
     wk1 = wk2 = wk3 = wk4 = wk5 = wk6 = wk7 = one(T)
+    w8_1 = cispi(T(-1)/4)
+    w8_3 = cispi(T(-3)/4)
 
     @inbounds for k in 0:m-1
         k0 = start_out +  k          * stride_out
@@ -345,7 +349,7 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         y0, y1, y2, y3 = out[k0], out[k1], out[k2], out[k3]
         y4, y5, y6, y7 = out[k4], out[k5], out[k6], out[k7]
 
-        # Apply all 8 twiddle factors
+        # Apply twiddle factors (not to y0)
         ỹ1 = y1 * wk1
         ỹ2 = y2 * wk2
         ỹ3 = y3 * wk3
@@ -354,39 +358,36 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         ỹ6 = y6 * wk6
         ỹ7 = y7 * wk7
 
-        # Radix-8 butterfly following same pattern as base case
-        # Stage 1: pairs separated by 4
-        w8_1 = cispi(T(-1)/4)
-        w8_3 = cispi(T(-3)/4)
+        # Follow same butterfly pattern as base case
+        # First level: pairs
+        y0_p_y4 = y0 + ỹ4
+        y0_m_y4 = y0 - ỹ4
+        y1_p_y5 = ỹ1 + ỹ5
+        y1_m_y5 = -(ỹ1 - ỹ5) * w8_1 * minusi
+        y2_p_y6 = ỹ2 + ỹ6
+        y2_m_y6 = -(ỹ2 - ỹ6) * minusi
+        y3_p_y7 = ỹ3 + ỹ7
+        y3_m_y7 = -(ỹ3 - ỹ7) * w8_3 * minusi
 
-        t0 = y0 + ỹ4
-        t4 = y0 - ỹ4
-        t1 = ỹ1 + ỹ5
-        t5 = (ỹ1 - ỹ5) * w8_1
-        t2 = ỹ2 + ỹ6
-        t6 = (ỹ2 - ỹ6) * minusi
-        t3 = ỹ3 + ỹ7
-        t7 = (ỹ3 - ỹ7) * w8_3
+        # Second level: groups of 4
+        t0_p_t2 = y0_p_y4 + y2_p_y6
+        t0_m_t2 = y0_p_y4 - y2_p_y6
+        t1_p_t3 = y1_p_y5 + y3_p_y7
+        t1_m_t3 = -(y1_p_y5 - y3_p_y7) * minusi
+        t4_p_t6 = y0_m_y4 + y2_m_y6
+        t4_m_t6 = y0_m_y4 - y2_m_y6
+        t5_p_t7 = y1_m_y5 + y3_m_y7
+        t5_m_t7 = -(y1_m_y5 - y3_m_y7) * minusi
 
-        # Stage 2: groups of 4
-        s0 = t0 + t2
-        s2 = t0 - t2
-        s1 = t1 + t3
-        s3 = (t1 - t3) * minusi
-        s4 = t4 + t6
-        s6 = (t4 - t6) * minusi
-        s5 = t5 + t7
-        s7 = (t5 - t7) * minusi
-
-        # Stage 3: final outputs
-        out[k0] = s0 + s1
-        out[k1] = s4 + s5
-        out[k2] = s2 + s3
-        out[k3] = s6 + s7
-        out[k4] = s0 - s1
-        out[k5] = s4 - s5
-        out[k6] = s2 - s3
-        out[k7] = s6 - s7
+        # Final outputs
+        out[k0] = t0_p_t2 + t1_p_t3
+        out[k1] = t4_p_t6 + t5_p_t7
+        out[k2] = t0_m_t2 + t1_m_t3
+        out[k3] = t4_m_t6 + t5_m_t7
+        out[k4] = t0_p_t2 - t1_p_t3
+        out[k5] = t4_p_t6 - t5_p_t7
+        out[k6] = t0_m_t2 - t1_m_t3
+        out[k7] = t4_m_t6 - t5_m_t7
 
         wk1 *= w1
         wk2 *= w2
