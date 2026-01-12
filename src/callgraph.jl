@@ -48,25 +48,31 @@ Returns POW8 (0) if N is a power of 8, POW4 (1) if power of 4, POW2 (2) if power
 """
 function _ispow248(N::Int)
     N < 1 && return nothing
-    # Check for powers of 8
-    while N & 0b111 == 0
-        N >>= 3
+
+    # Check if N is a power of 8
+    temp = N
+    while temp & 0b111 == 0
+        temp >>= 3
     end
-    if N == 1
+    if temp == 1
         return POW8
     end
-    # Check for powers of 4
-    while N & 0b11 == 0
-        N >>= 2
+
+    # Check if N is a power of 4
+    temp = N
+    while temp & 0b11 == 0
+        temp >>= 2
     end
-    if N == 1
+    if temp == 1
         return POW4
     end
-    # Check for powers of 2
-    while N & 0b1 == 0
-        N >>= 1
+
+    # Check if N is a power of 2
+    temp = N
+    while temp & 0b1 == 0
+        temp >>= 1
     end
-    return N == 1 ? POW2 : nothing
+    return temp == 1 ? POW2 : nothing
 end
 
 """
@@ -107,10 +113,10 @@ function CallGraphNode!(nodes::Vector{CallGraphNode{T}}, N::Int, workspace::Vect
                     push!(nodes, CallGraphNode(0, 0, pow2FFT, N, s_in, s_out, w))
                     return 1
                 else
-                    # Odd power of 2 with N > 2: create composite with pow4FFT + pow2FFT
-                    # N = (N/2) * 2, where N/2 is a power of 4
-                    N1 = N ÷ 2  # This will be a power of 4
-                    N2 = 2       # Remaining power
+                    # Odd power of 2 with N > 2: N = 2^k where k is odd, k >= 3
+                    # Factor as N = 8 × (N/8), where N/8 is a power of 4
+                    N1 = N ÷ 8  # This will be a power of 4
+                    N2 = 8       # Factor of 8
                     push!(nodes, CallGraphNode(0, 0, dft, N, s_in, s_out, w))
                     sz = length(nodes)
                     push!(workspace, Vector{T}(undef, N))
