@@ -261,9 +261,7 @@ Power of 8 FFT, in place
 function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_out::Int, stride_out::Int, start_in::Int, stride_in::Int, w::T) where {T, U}
     minusi = -sign(imag(w))*im
     @inbounds if N == 8
-        # Base case: 8-point FFT decomposed as two 4-point FFTs
-        # Even indices: 0, 2, 4, 6
-        # Odd indices: 1, 3, 5, 7
+        # Base case: 8-point FFT butterfly
         x0 = in[start_in]
         x1 = in[start_in +   stride_in]
         x2 = in[start_in + 2*stride_in]
@@ -273,41 +271,40 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         x6 = in[start_in + 6*stride_in]
         x7 = in[start_in + 7*stride_in]
 
-        # 4-point FFT of even indices (0,2,4,6)
-        e0e2 = x0 + x4
-        e0_2 = x0 - x4
-        e2e6 = x2 + x6
-        e2_6 = (x2 - x6) * minusi
-        E0 = e0e2 + e2e6
-        E1 = e0_2 + e2_6
-        E2 = e0e2 - e2e6
-        E3 = e0_2 - e2_6
+        # Radix-8 butterfly with all 8 twiddle factors
+        # W_8^1 = e^(-πi/4), W_8^2 = -i, W_8^3 = e^(-3πi/4)
+        w8_1 = cispi(T(-1)/4)
+        w8_3 = cispi(T(-3)/4)
 
-        # 4-point FFT of odd indices (1,3,5,7)
-        o1o5 = x1 + x5
-        o1_5 = x1 - x5
-        o3o7 = x3 + x7
-        o3_7 = (x3 - x7) * minusi
-        O0 = o1o5 + o3o7
-        O1 = o1_5 + o3_7
-        O2 = o1o5 - o3o7
-        O3 = o1_5 - o3_7
+        # Stage 1: pairs separated by 4
+        t0 = x0 + x4
+        t4 = x0 - x4
+        t1 = x1 + x5
+        t5 = (x1 - x5) * w8_1
+        t2 = x2 + x6
+        t6 = (x2 - x6) * minusi
+        t3 = x3 + x7
+        t7 = (x3 - x7) * w8_3
 
-        # Twiddle factors for combining
-        # W = e^(-2πi/8) = e^(-πi/4)
-        w8_1 = cispi(T(-1)/4)  # e^(-πi/4)
-        w8_2 = minusi          # e^(-πi/2) = -i (for forward)
-        w8_3 = w8_1 * w8_2     # e^(-3πi/4)
+        # Stage 2: groups of 4
+        s0 = t0 + t2
+        s2 = t0 - t2
+        s1 = t1 + t3
+        s3 = (t1 - t3) * minusi
+        s4 = t4 + t6
+        s6 = (t4 - t6) * minusi
+        s5 = t5 + t7
+        s7 = (t5 - t7) * minusi
 
-        # Combine: X[k] = E[k] + W^k * O[k], X[k+4] = E[k] - W^k * O[k]
-        out[start_out]                = E0 + O0
-        out[start_out +   stride_out] = E1 + w8_1 * O1
-        out[start_out + 2*stride_out] = E2 + w8_2 * O2
-        out[start_out + 3*stride_out] = E3 + w8_3 * O3
-        out[start_out + 4*stride_out] = E0 - O0
-        out[start_out + 5*stride_out] = E1 - w8_1 * O1
-        out[start_out + 6*stride_out] = E2 - w8_2 * O2
-        out[start_out + 7*stride_out] = E3 - w8_3 * O3
+        # Stage 3: final combination
+        out[start_out]                = s0 + s1
+        out[start_out +   stride_out] = s4 + s5
+        out[start_out + 2*stride_out] = s2 + s3
+        out[start_out + 3*stride_out] = s6 + s7
+        out[start_out + 4*stride_out] = s0 - s1
+        out[start_out + 5*stride_out] = s4 - s5
+        out[start_out + 6*stride_out] = s2 - s3
+        out[start_out + 7*stride_out] = s6 - s7
         return
     end
 
@@ -332,11 +329,8 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
     fft_pow8!(out, in, m, start_out + 6*m*stride_out, stride_out, start_in + 6*stride_in, stride_in*8, w8)
     fft_pow8!(out, in, m, start_out + 7*m*stride_out, stride_out, start_in + 7*stride_in, stride_in*8, w8)
 
-    # Combine with 8-point butterflies following the same decomposition pattern
+    # Twiddle factors for all 8 branches
     wk1 = wk2 = wk3 = wk4 = wk5 = wk6 = wk7 = one(T)
-    w8_twiddle1 = cispi(T(-1)/4)  # W_8^1
-    w8_twiddle2 = minusi          # W_8^2
-    w8_twiddle3 = w8_twiddle1 * w8_twiddle2  # W_8^3
 
     @inbounds for k in 0:m-1
         k0 = start_out +  k          * stride_out
@@ -351,7 +345,7 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         y0, y1, y2, y3 = out[k0], out[k1], out[k2], out[k3]
         y4, y5, y6, y7 = out[k4], out[k5], out[k6], out[k7]
 
-        # Apply twiddle factors from the recursive calls
+        # Apply all 8 twiddle factors
         ỹ1 = y1 * wk1
         ỹ2 = y2 * wk2
         ỹ3 = y3 * wk3
@@ -360,35 +354,36 @@ function fft_pow8!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         ỹ6 = y6 * wk6
         ỹ7 = y7 * wk7
 
-        # 4-point FFT of even-indexed results (0,2,4,6)
-        e0e4 = y0 + ỹ4
-        e0_4 = y0 - ỹ4
-        e2e6 = ỹ2 + ỹ6
-        e2_6 = (ỹ2 - ỹ6) * minusi
-        E0 = e0e4 + e2e6
-        E1 = e0_4 + e2_6
-        E2 = e0e4 - e2e6
-        E3 = e0_4 - e2_6
+        # Radix-8 butterfly following same pattern as base case
+        # Stage 1: pairs separated by 4
+        t0 = y0 + ỹ4
+        t4 = y0 - ỹ4
+        t1 = ỹ1 + ỹ5
+        t5 = -(ỹ1 - ỹ5) * minusi * cispi(T(-1)/4)
+        t2 = ỹ2 + ỹ6
+        t6 = (ỹ2 - ỹ6) * minusi
+        t3 = ỹ3 + ỹ7
+        t7 = -(ỹ3 - ỹ7) * minusi * cispi(T(-3)/4)
 
-        # 4-point FFT of odd-indexed results (1,3,5,7)
-        o1o5 = ỹ1 + ỹ5
-        o1_5 = ỹ1 - ỹ5
-        o3o7 = ỹ3 + ỹ7
-        o3_7 = (ỹ3 - ỹ7) * minusi
-        O0 = o1o5 + o3o7
-        O1 = o1_5 + o3_7
-        O2 = o1o5 - o3o7
-        O3 = o1_5 - o3_7
+        # Stage 2: groups of 4
+        s0 = t0 + t2
+        s2 = t0 - t2
+        s1 = t1 + t3
+        s3 = (t1 - t3) * minusi
+        s4 = t4 + t6
+        s6 = (t4 - t6) * minusi
+        s5 = t5 + t7
+        s7 = (t5 - t7) * minusi
 
-        # Combine: X[k] = E[k] + W_8^k * O[k], X[k+4] = E[k] - W_8^k * O[k]
-        out[k0] = E0 + O0
-        out[k1] = E1 + w8_twiddle1 * O1
-        out[k2] = E2 + w8_twiddle2 * O2
-        out[k3] = E3 + w8_twiddle3 * O3
-        out[k4] = E0 - O0
-        out[k5] = E1 - w8_twiddle1 * O1
-        out[k6] = E2 - w8_twiddle2 * O2
-        out[k7] = E3 - w8_twiddle3 * O3
+        # Stage 3: final outputs
+        out[k0] = s0 + s1
+        out[k1] = s4 + s5
+        out[k2] = s2 + s3
+        out[k3] = s6 + s7
+        out[k4] = s0 - s1
+        out[k5] = s4 - s5
+        out[k6] = s2 - s3
+        out[k7] = s6 - s7
 
         wk1 *= w1
         wk2 *= w2
