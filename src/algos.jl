@@ -24,6 +24,8 @@ function fft!(out::AbstractVector{T}, in::AbstractVector{T}, start_out::Int, sta
                 fft_pow3!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d), _m_120, _p_120)
             elseif t === pow4FFT
                 fft_pow4!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d))
+            elseif t === bluesteinFFT
+                fft_bluestein!(out, in, N, start_out, s_out, start_in, s_in, _conj(root.w, d), d, g, idx)
             else
                 throw(ArgumentError("kernel not implemented"))
             end
@@ -287,5 +289,127 @@ function fft_pow3!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_
         @muladd out[k2] = y_k0 + y_k1*wk1*minus120 + y_k2*wk2*plus120
         wk1 *= w1
         wk2 *= w2
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+Bluestein's FFT algorithm, O(N log N) for arbitrary N
+
+Bluestein's algorithm converts an FFT of size N into a convolution, which can
+be computed using FFTs of size M where M is a power of 2 (or composite) >= 2N-1.
+
+# Arguments
+`out`: Output vector
+`in`: Input vector
+`N`: Size of the transform
+`start_out`: Index of the first element of the output vector
+`stride_out`: Stride of the output vector
+`start_in`: Index of the first element of the input vector
+`stride_in`: Stride of the input vector
+`w`: The value `cispi(direction_sign(d) * 2 / N)`
+`d`: Direction of the transform
+`g`: Call graph
+`idx`: Index of the current transform in the call graph
+
+"""
+function fft_bluestein!(out::AbstractVector{T}, in::AbstractVector{U}, N::Int, start_out::Int, stride_out::Int, start_in::Int, stride_in::Int, w::T, d::Direction, g::CallGraph{T}, idx::Int) where {T, U}
+    # Find the next power of 2 >= 2N-1
+    M = nextpow(2, 2*N - 1)
+
+    # Extract workspace from call graph
+    tmp = g.workspace[idx]
+
+    # Workspace layout: [chirp(N), b_fwd(M), b_bwd(M), a(M), a_fft(M)]
+    # chirp is stored once, backward uses conj(chirp)
+    # b_fwd and b_bwd are precomputed FFTs
+    chirp_base = view(tmp, 1:N)
+    if d == FFT_FORWARD
+        b_fft = view(tmp, N+1:N+M)
+    else  # FFT_BACKWARD
+        b_fft = view(tmp, N+M+1:N+2*M)
+    end
+    a = view(tmp, N+2*M+1:N+3*M)
+    a_fft = view(tmp, N+3*M+1:N+4*M)
+
+    # Twiddle factor for size M FFT (M is always a power of 2)
+    w_M = cispi(T(2)/M)
+
+    # Create input sequence a_n = x_n * chirp_n
+    # For forward: chirp_n = chirp_base[n]
+    # For backward: chirp_n = conj(chirp_base[n])
+    if d == FFT_FORWARD
+        @inbounds for n in 0:N-1
+            a[n+1] = in[start_in + n*stride_in] * chirp_base[n+1]
+        end
+    else
+        @inbounds for n in 0:N-1
+            a[n+1] = in[start_in + n*stride_in] * conj(chirp_base[n+1])
+        end
+    end
+    @inbounds for n in N:M-1
+        a[n+1] = zero(T)
+    end
+
+    # FFT of a -> a_fft (forward transform)
+    fft_pow2!(a_fft, a, M, 1, 1, 1, 1, _conj(w_M, FFT_FORWARD))
+
+    # Pointwise multiplication: a_fft *= b_fft (b_fft is precomputed)
+    @inbounds for i in 1:M
+        a_fft[i] *= b_fft[i]
+    end
+
+    # Inverse FFT: a_fft -> a (backward transform, reuse a for result)
+    fft_pow2!(a, a_fft, M, 1, 1, 1, 1, _conj(w_M, FFT_BACKWARD))
+
+    # Extract first N elements and multiply by chirp, normalizing by M
+    # For forward: chirp_n = chirp_base[n]
+    # For backward: chirp_n = conj(chirp_base[n])
+    Minv = T(1) / M
+    if d == FFT_FORWARD
+        @inbounds for k in 0:N-1
+            out[start_out + k*stride_out] = a[k+1] * chirp_base[k+1] * Minv
+        end
+    else
+        @inbounds for k in 0:N-1
+            out[start_out + k*stride_out] = a[k+1] * conj(chirp_base[k+1]) * Minv
+        end
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+Precompute FFT of b vectors for Bluestein algorithm
+
+Iterates through the call graph and computes FFT(b_fwd) and FFT(b_bwd)
+for all Bluestein nodes. Must be called after CallGraph construction.
+
+"""
+function precompute_bluestein_b_ffts!(g::CallGraph{T}) where {T}
+    for (idx, node) in enumerate(g.nodes)
+        if node.type === bluesteinFFT
+            N = node.sz
+            M = nextpow(2, 2*N - 1)
+            tmp = g.workspace[idx]
+
+            # Workspace layout: [chirp(N), b_fwd(M), b_bwd(M), a(M), a_fft(M)]
+            b_fwd = view(tmp, N+1:N+M)
+            b_bwd = view(tmp, N+M+1:N+2*M)
+            a = view(tmp, N+2*M+1:N+3*M)
+
+            w_M = cispi(T(2)/M)
+
+            # Compute FFT(b_fwd) in place using a as temporary
+            @inbounds for i in 1:M
+                a[i] = b_fwd[i]
+            end
+            fft_pow2!(b_fwd, a, M, 1, 1, 1, 1, _conj(w_M, FFT_FORWARD))
+
+            # Compute FFT(b_bwd) in place using a as temporary
+            @inbounds for i in 1:M
+                a[i] = b_bwd[i]
+            end
+            fft_pow2!(b_bwd, a, M, 1, 1, 1, 1, _conj(w_M, FFT_FORWARD))
+        end
     end
 end

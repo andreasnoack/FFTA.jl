@@ -28,12 +28,15 @@ function AbstractFFTs.plan_fft(x::AbstractArray{T,N}, region; kwargs...)::FFTAPl
     FFTN = length(region)
     if FFTN == 1
         g = CallGraph{T}(size(x,region[]))
+        precompute_bluestein_b_ffts!(g)
         pinv = FFTAInvPlan{T,FFTN}()
         return FFTAPlan_cx{T,FFTN}((g,), region, FFT_FORWARD, pinv)
     elseif FFTN == 2
         sort!(region)
         g1 = CallGraph{T}(size(x,region[1]))
         g2 = CallGraph{T}(size(x,region[2]))
+        precompute_bluestein_b_ffts!(g1)
+        precompute_bluestein_b_ffts!(g2)
         pinv = FFTAInvPlan{T,FFTN}()
         return FFTAPlan_cx{T,FFTN}((g1,g2), region, FFT_FORWARD, pinv)
     else
@@ -45,12 +48,15 @@ function AbstractFFTs.plan_bfft(x::AbstractArray{T,N}, region; kwargs...)::FFTAP
     FFTN = length(region)
     if FFTN == 1
         g = CallGraph{T}(size(x,region[]))
+        precompute_bluestein_b_ffts!(g)
         pinv = FFTAInvPlan{T,FFTN}()
         return FFTAPlan_cx{T,FFTN}((g,), region, FFT_BACKWARD, pinv)
     elseif FFTN == 2
         sort!(region)
         g1 = CallGraph{T}(size(x,region[1]))
         g2 = CallGraph{T}(size(x,region[2]))
+        precompute_bluestein_b_ffts!(g1)
+        precompute_bluestein_b_ffts!(g2)
         pinv = FFTAInvPlan{T,FFTN}()
         return FFTAPlan_cx{T,FFTN}((g1,g2), region, FFT_BACKWARD, pinv)
     else
@@ -62,12 +68,15 @@ function AbstractFFTs.plan_rfft(x::AbstractArray{T,N}, region; kwargs...)::FFTAP
     FFTN = length(region)
     if FFTN == 1
         g = CallGraph{Complex{T}}(size(x,region[]))
+        precompute_bluestein_b_ffts!(g)
         pinv = FFTAInvPlan{Complex{T},FFTN}()
         return FFTAPlan_re{Complex{T},FFTN}(tuple(g), region, FFT_FORWARD, pinv, size(x,region[]))
     elseif FFTN == 2
         sort!(region)
         g1 = CallGraph{Complex{T}}(size(x,region[1]))
         g2 = CallGraph{Complex{T}}(size(x,region[2]))
+        precompute_bluestein_b_ffts!(g1)
+        precompute_bluestein_b_ffts!(g2)
         pinv = FFTAInvPlan{Complex{T},FFTN}()
         return FFTAPlan_re{Complex{T},FFTN}(tuple(g1,g2), region, FFT_FORWARD, pinv, size(x,region[1]))
     else
@@ -79,12 +88,15 @@ function AbstractFFTs.plan_brfft(x::AbstractArray{T,N}, len, region; kwargs...):
     FFTN = length(region)
     if FFTN == 1
         g = CallGraph{T}(len)
+        precompute_bluestein_b_ffts!(g)
         pinv = FFTAInvPlan{T,FFTN}()
         return FFTAPlan_re{T,FFTN}((g,), region, FFT_BACKWARD, pinv, len)
     elseif FFTN == 2
         sort!(region)
         g1 = CallGraph{T}(len)
         g2 = CallGraph{T}(size(x,region[2]))
+        precompute_bluestein_b_ffts!(g1)
+        precompute_bluestein_b_ffts!(g2)
         pinv = FFTAInvPlan{T,FFTN}()
         return FFTAPlan_re{T,FFTN}((g1,g2), region, FFT_BACKWARD, pinv, len)
     else
