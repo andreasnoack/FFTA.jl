@@ -14,20 +14,30 @@ using Dates
 using Primes
 
 function generate_html_report()
-    # Load results
+    # Load 1D results
     ffta_file = joinpath(@__DIR__, "results_ffta.json")
     fftw_file = joinpath(@__DIR__, "results_fftw.json")
 
     if !isfile(ffta_file) || !isfile(fftw_file)
-        error("Benchmark results not found. Run benchmarks first!")
+        error("1D Benchmark results not found. Run benchmarks first!")
     end
 
     ffta_results = JSON.parsefile(ffta_file)
     fftw_results = JSON.parsefile(fftw_file)
 
+    # Load 2D results (optional)
+    ffta_2d_file = joinpath(@__DIR__, "results_ffta_2d.json")
+    fftw_2d_file = joinpath(@__DIR__, "results_fftw_2d.json")
+
+    has_2d_results = isfile(ffta_2d_file) && isfile(fftw_2d_file)
+    ffta_2d_results = has_2d_results ? JSON.parsefile(ffta_2d_file) : nothing
+    fftw_2d_results = has_2d_results ? JSON.parsefile(fftw_2d_file) : nothing
+
     # Embed JSON data in JavaScript
     ffta_json = JSON.json(ffta_results)
     fftw_json = JSON.json(fftw_results)
+    ffta_2d_json = has_2d_results ? JSON.json(ffta_2d_results) : "null"
+    fftw_2d_json = has_2d_results ? JSON.json(fftw_2d_results) : "null"
 
     # Start HTML document
     html = """
@@ -160,7 +170,7 @@ function generate_html_report()
             </ul>
         </div>
 
-        <h2>Performance Visualizations</h2>
+        <h2>1D FFT Performance Visualizations</h2>
 
         <div class="plot-container">
             <h3>Runtime/N vs N (All Categories)</h3>
@@ -195,8 +205,10 @@ function generate_html_report()
             </div>
         </div>
 
-        <h2>Detailed Results</h2>
+        <h2>1D FFT Detailed Results</h2>
         <div id="results-tables"></div>
+
+        <div id="2d-section"></div>
 
         <div class="summary" style="margin-top: 40px;">
             <h2>Interpretation</h2>
@@ -220,6 +232,8 @@ function generate_html_report()
             // Embedded benchmark data
             const fftaResults = $ffta_json;
             const fftwResults = $fftw_json;
+            const ffta2dResults = $ffta_2d_json;
+            const fftw2dResults = $fftw_2d_json;
 
             const categories = {
                 'odd_power_of_2': { name: 'Odd Powers of 2', color: 'blue' },
@@ -227,6 +241,16 @@ function generate_html_report()
                 'power_of_3': { name: 'Powers of 3', color: 'green' },
                 'composite': { name: 'Composite', color: 'purple' },
                 'prime': { name: 'Prime Numbers', color: 'orange' }
+            };
+
+            const categories2d = {
+                'square_power_of_2': { name: 'Square Powers of 2', color: 'blue' },
+                'square_power_of_3': { name: 'Square Powers of 3', color: 'green' },
+                'rect_power_of_2': { name: 'Rectangular Powers of 2', color: 'red' },
+                'mixed_power2_power3': { name: 'Power of 2 × Power of 3', color: 'purple' },
+                'mixed_power2_prime': { name: 'Power of 2 × Prime', color: 'orange' },
+                'prime_prime': { name: 'Prime × Prime', color: 'brown' },
+                'composite_2d': { name: 'Composite 2D', color: 'pink' }
             };
 
             // Helper function to filter data by category
@@ -422,6 +446,189 @@ function generate_html_report()
                 document.getElementById('results-tables').innerHTML = html;
             }
 
+            // Create 2D plots and tables
+            function create2DSection() {
+                if (!ffta2dResults || !fftw2dResults) return;
+
+                let html = '<h2 style="margin-top: 60px;">2D FFT Performance Visualizations</h2>';
+
+                html += '<div class="plot-container">';
+                html += '<h3>Runtime/Element vs Total Elements (All Categories)</h3>';
+                html += '<div id="plot-2d-combined" class="plot"></div>';
+                html += '</div>';
+
+                html += '<div class="plot-container">';
+                html += '<h3>Absolute Runtime (All Categories)</h3>';
+                html += '<div id="plot-2d-absolute" class="plot"></div>';
+                html += '</div>';
+
+                html += '<h2>2D FFT Detailed Results</h2>';
+                html += '<div id="results-tables-2d"></div>';
+
+                document.getElementById('2d-section').innerHTML = html;
+
+                // Create the plots
+                create2DCombinedPlot();
+                create2DAbsolutePlot();
+                create2DResultsTables();
+            }
+
+            function create2DCombinedPlot() {
+                if (!ffta2dResults || !fftw2dResults) return;
+
+                const traces = [];
+
+                for (const [catKey, catInfo] of Object.entries(categories2d)) {
+                    const fftaCat = ffta2dResults.data.filter(d => d.category === catKey);
+                    const fftwCat = fftw2dResults.data.filter(d => d.category === catKey);
+
+                    if (fftaCat.length > 0) {
+                        traces.push({
+                            x: fftaCat.map(d => d.total_elements),
+                            y: fftaCat.map(d => d.runtime_per_element * 1e9),
+                            text: fftaCat.map(d => d.size_string),
+                            name: 'FFTA: ' + catInfo.name,
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            marker: { size: 8, color: catInfo.color },
+                            line: { width: 2, color: catInfo.color }
+                        });
+                    }
+
+                    if (fftwCat.length > 0) {
+                        traces.push({
+                            x: fftwCat.map(d => d.total_elements),
+                            y: fftwCat.map(d => d.runtime_per_element * 1e9),
+                            text: fftwCat.map(d => d.size_string),
+                            name: 'FFTW: ' + catInfo.name,
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            marker: { size: 8, symbol: 'square', color: catInfo.color },
+                            line: { width: 2, dash: 'dash', color: catInfo.color }
+                        });
+                    }
+                }
+
+                const layout = {
+                    xaxis: { title: 'Total Elements (rows × cols)', type: 'log' },
+                    yaxis: { title: 'Runtime / Element (nanoseconds)', type: 'log' },
+                    hovermode: 'closest',
+                    showlegend: true,
+                    legend: { x: 1.05, y: 1 }
+                };
+
+                Plotly.newPlot('plot-2d-combined', traces, layout, { responsive: true });
+            }
+
+            function create2DAbsolutePlot() {
+                if (!ffta2dResults || !fftw2dResults) return;
+
+                const traces = [];
+
+                for (const [catKey, catInfo] of Object.entries(categories2d)) {
+                    const fftaCat = ffta2dResults.data.filter(d => d.category === catKey);
+                    const fftwCat = fftw2dResults.data.filter(d => d.category === catKey);
+
+                    if (fftaCat.length > 0) {
+                        traces.push({
+                            x: fftaCat.map(d => d.total_elements),
+                            y: fftaCat.map(d => d.median_time * 1e6),
+                            text: fftaCat.map(d => d.size_string),
+                            name: 'FFTA: ' + catInfo.name,
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            marker: { size: 8, color: catInfo.color },
+                            line: { width: 2, color: catInfo.color }
+                        });
+                    }
+
+                    if (fftwCat.length > 0) {
+                        traces.push({
+                            x: fftwCat.map(d => d.total_elements),
+                            y: fftwCat.map(d => d.median_time * 1e6),
+                            text: fftwCat.map(d => d.size_string),
+                            name: 'FFTW: ' + catInfo.name,
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            marker: { size: 8, symbol: 'square', color: catInfo.color },
+                            line: { width: 2, dash: 'dash', color: catInfo.color }
+                        });
+                    }
+                }
+
+                const layout = {
+                    xaxis: { title: 'Total Elements (rows × cols)', type: 'log' },
+                    yaxis: { title: 'Runtime (microseconds)', type: 'log' },
+                    hovermode: 'closest',
+                    showlegend: true,
+                    legend: { x: 1.05, y: 1 }
+                };
+
+                Plotly.newPlot('plot-2d-absolute', traces, layout, { responsive: true });
+            }
+
+            function create2DResultsTables() {
+                if (!ffta2dResults || !fftw2dResults) return;
+
+                let html = '';
+
+                for (const [catKey, catInfo] of Object.entries(categories2d)) {
+                    const fftaCat = ffta2dResults.data.filter(d => d.category === catKey);
+                    const fftwCat = fftw2dResults.data.filter(d => d.category === catKey);
+
+                    if (fftaCat.length === 0 && fftwCat.length === 0) continue;
+
+                    html += '<h3>' + catInfo.name + '</h3>';
+                    html += '<table>';
+                    html += '<thead><tr>';
+                    html += '<th>Array Size</th>';
+                    html += '<th>Total Elements</th>';
+                    html += '<th>FFTA Time (μs)</th>';
+                    html += '<th>FFTW Time (μs)</th>';
+                    html += '<th>FFTA Runtime/Element (ns)</th>';
+                    html += '<th>FFTW Runtime/Element (ns)</th>';
+                    html += '<th>Speedup</th>';
+                    html += '</tr></thead>';
+                    html += '<tbody>';
+
+                    const allSizes = [...new Set([
+                        ...fftaCat.map(d => d.size_string),
+                        ...fftwCat.map(d => d.size_string)
+                    ])].sort();
+
+                    for (const sizeStr of allSizes) {
+                        const fftaData = fftaCat.find(d => d.size_string === sizeStr);
+                        const fftwData = fftwCat.find(d => d.size_string === sizeStr);
+
+                        if (fftaData && fftwData) {
+                            const fftaTime = (fftaData.median_time * 1e6).toFixed(3);
+                            const fftwTime = (fftwData.median_time * 1e6).toFixed(3);
+                            const fftaPerN = (fftaData.runtime_per_element * 1e9).toFixed(3);
+                            const fftwPerN = (fftwData.runtime_per_element * 1e9).toFixed(3);
+                            const speedup = fftwData.median_time / fftaData.median_time;
+                            const speedupClass = speedup > 1 ? 'faster' : 'slower';
+                            const speedupText = speedup > 1
+                                ? speedup.toFixed(2) + 'x (FFTA faster)'
+                                : (1/speedup).toFixed(2) + 'x (FFTW faster)';
+
+                            html += '<tr>';
+                            html += '<td>' + sizeStr + '</td>';
+                            html += '<td>' + fftaData.total_elements + '</td>';
+                            html += '<td>' + fftaTime + '</td>';
+                            html += '<td>' + fftwTime + '</td>';
+                            html += '<td>' + fftaPerN + '</td>';
+                            html += '<td>' + fftwPerN + '</td>';
+                            html += '<td class="' + speedupClass + '">' + speedupText + '</td>';
+                            html += '</tr>';
+                        }
+                    }
+
+                    html += '</tbody></table>';
+                }
+
+                document.getElementById('results-tables-2d').innerHTML = html;
+            }
+
             // Initialize all plots on page load
             window.addEventListener('load', function() {
                 createCombinedPlot();
@@ -432,6 +639,7 @@ function generate_html_report()
                 createCategoryPlot('composite', 'plot-composite');
                 createCategoryPlot('prime', 'plot-primes');
                 createResultsTables();
+                create2DSection();
             });
         </script>
 
